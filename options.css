@@ -109,3 +109,15 @@ summary { color: var(--accent); font-weight: 600; cursor: pointer; }
 .source-info strong { display: block; }
 .meta { display: block; color: var(--muted); font-size: 13px; }
 .meta.warn { color: var(--danger); }
+
+#source-list input[type="checkbox"] { width: 18px; height: 18px; margin: 0; accent-color: var(--accent); }
+.total { margin: 12px 0 0; font-weight: 600; }
+.total:empty { display: none; }
+.warning {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  background: var(--warn-bg);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+}
+[hidden] { display: none !important; }

@@ -1,12 +1,14 @@
 // Gloss options page: API key, answer settings and reference sources.
 import { MODELS, describeError, testConnection } from './lib/api.js';
 import {
+  SOURCE_TOKEN_WARNING,
   addSource,
   deleteSource,
   getSettings,
   listSources,
   saveApiKey,
   saveSettings,
+  setSourceActive,
 } from './lib/store.js';
 
 const $ = (id) => document.getElementById(id);
@@ -90,6 +92,16 @@ const number = (n) => n.toLocaleString();
 function sourceRow(source) {
   const row = document.createElement('li');
 
+  const toggle = document.createElement('input');
+  toggle.type = 'checkbox';
+  toggle.checked = source.active;
+  toggle.title = 'Attach to questions';
+  toggle.setAttribute('aria-label', `Attach ${source.name} to questions`);
+  toggle.addEventListener('change', async () => {
+    await setSourceActive(source.id, toggle.checked);
+    renderSources();
+  });
+
   const info = document.createElement('div');
   info.className = 'source-info';
   const name = document.createElement('strong');
@@ -120,7 +132,7 @@ function sourceRow(source) {
     renderSources();
   });
 
-  row.append(info, remove);
+  row.append(toggle, info, remove);
   return row;
 }
 
@@ -128,6 +140,18 @@ async function renderSources() {
   const sources = await listSources();
   $('source-list').replaceChildren(...sources.map(sourceRow));
   $('source-empty').hidden = sources.length > 0;
+
+  const active = sources.filter((s) => s.active);
+  const tokens = active.reduce((sum, s) => sum + s.tokens, 0);
+  $('source-total').textContent = sources.length
+    ? `${active.length} of ${sources.length} active, about ${number(tokens)} tokens attached to each question.`
+    : '';
+  const warning = $('source-warning');
+  warning.hidden = tokens <= SOURCE_TOKEN_WARNING;
+  warning.textContent =
+    `Active sources total about ${number(tokens)} tokens, over the recommended ` +
+    `${number(SOURCE_TOKEN_WARNING)}. Every question will be slower and cost more, and may not ` +
+    'fit at all: Claude Haiku 4.5 accepts roughly 200,000 tokens. Turn some sources off.';
 }
 
 $('text-add').addEventListener('click', async () => {
