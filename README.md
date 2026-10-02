@@ -18,22 +18,29 @@ Plain JavaScript, HTML and CSS. No build step, no server, no accounts.
 After pulling new code, press the reload button on the Gloss entry in `chrome://extensions`,
 then reload any tabs where you want to use it.
 
-## Get an API key
+## Choose a provider and add a key
 
-Gloss calls the Anthropic API directly with your own key.
+Gloss works with any of these. Pick one under **AI provider** in settings, paste its key,
+click **Save**, then **Test connection**.
 
-1. Sign in at the [Claude Console](https://console.anthropic.com/) and add billing credit.
-2. Create a key under **Settings → API keys**.
-3. Paste it into the **API key** field in Gloss settings and click **Save**.
-4. Click **Test connection** to check it works.
+| Provider | Cost | Get a key | Default model |
+| --- | --- | --- | --- |
+| Google Gemini (default) | Free tier | [Google AI Studio](https://aistudio.google.com/apikey) | `gemini-3.8-flash` |
+| Groq | Free tier | [GroqCloud console](https://console.groq.com/keys) | `openai/gpt-oss-120b` |
+| DeepSeek | Pay as you go, very cheap | [DeepSeek platform](https://platform.deepseek.com/api_keys) | `deepseek-flash` |
+| Anthropic (Claude) | Paid API credits | [Claude Console](https://console.anthropic.com/settings/keys) | `claude-haiku-4-5-20251001` |
 
-An API key is required. A Claude.ai subscription (Pro or Max) can't be used instead: it
-is billed separately from the API and has no supported way to power a third-party
-extension. With the default Haiku model and no sources attached, a short question costs
-roughly a tenth of a cent.
+- Each provider keeps its own key, so you can switch between them without re-entering keys.
+- The model dropdown lists suggested models. Choose **Other model ID…** to type any
+  model the provider offers (useful when providers rename models).
+- Free tiers have per-minute and per-day limits. When you hit one, the card says so and
+  offers **Try again**.
+- Google may use prompts sent on the Gemini free tier to improve its products. Don't
+  use the free tier for anything private.
+- A Claude.ai subscription (Pro or Max) can't be used in place of an Anthropic API key.
 
-The key is stored in `chrome.storage.local` in this browser only. It is never logged and
-is sent nowhere except `https://api.anthropic.com`.
+Keys are stored in `chrome.storage.local` in this browser only. They are never logged,
+and each key is sent only to its own provider's API.
 
 ## Use it
 
@@ -57,7 +64,7 @@ change or set it at `chrome://extensions/shortcuts` (there is a button for this 
 
 ## Settings
 
-- **Model**: Claude Haiku 4.5 (default, fast and cheap) or Claude Sonnet 5.5 (more capable).
+- **Provider and model**: see above.
 - **Answer length**: Brief (default: the answer plus a few words of reason) or Normal
   (the answer plus a one-line reason, up to about 80 words).
 
@@ -73,10 +80,12 @@ point out when one contradicts or adds to an answer.
 - The page shows the estimated token total of the active sources and warns above about
   150,000 tokens. Estimates assume roughly 4 characters per token.
 
-Active sources are sent with every question, so large ones cost more per question. They
-are sent in a cached block: repeat questions within about five minutes reuse the cache
-and are cheaper and faster. Caching only applies above a minimum size (about 4,000
-tokens of sources on Haiku 4.5).
+Active sources are sent with every question, so large ones cost more (or use more of a
+free tier's quota) per question. They always sit at the same place at the start of the
+prompt, so providers that cache repeated prompts (Anthropic, Gemini, DeepSeek) can reuse
+them. On Anthropic they go in an explicitly cached block, which only applies above a
+minimum size (about 4,000 tokens of sources on Haiku 4.5). Groq's free tier limits tokens
+per minute, so large sources often fail there.
 
 ## Known limitations
 
@@ -90,8 +99,10 @@ tokens of sources on Haiku 4.5).
   text and warns when a PDF has very little. PDFs that rely on special character maps
   (some Chinese, Japanese and Korean documents) may extract poorly.
 - **No search over sources**: all active sources are sent whole. Sources larger than the
-  model's context window (about 200,000 tokens for Haiku 4.5) are rejected with a
-  message; turn some off or switch to Sonnet 5.5.
+  model's context window (about 131,000 tokens on Groq, 200,000 on Claude Haiku 4.5) are
+  rejected with a message; turn some off or switch provider.
+- **Model names change**: if a suggested model is retired, the card reports that the
+  model isn't available. Pick another, or type the current ID under **Other model ID…**.
 - **Very long selections** are cut to the first 6,000 characters (the card says so).
 - **After reloading the extension**, cards already open on a page stop working until
   you reload that page.
@@ -101,12 +112,13 @@ tokens of sources on Haiku 4.5).
 
 | File | Role |
 | --- | --- |
-| `manifest.json` | Manifest V3. Permissions: `contextMenus`, `storage`, `unlimitedStorage`, `activeTab`, `scripting`; host access only to `https://api.anthropic.com/*`. |
+| `manifest.json` | Manifest V3. Permissions: `contextMenus`, `storage`, `unlimitedStorage`, `activeTab`, `scripting`; host access only to the four provider APIs. |
 | `background.js` | Service worker: context menu, shortcut, injects the content script on demand, makes the streaming API call. |
 | `content.js` | Captures the selection and about 300 characters of context each side, renders the card in a closed Shadow DOM, handles follow-ups and dismissal. |
 | `card.css.js` | The card's styles (light and dark). |
 | `options.html` / `options.js` / `options.css` | Settings and the sources manager. |
-| `lib/api.js` | Anthropic Messages API client: SSE parsing and error mapping. |
+| `lib/providers.js` | Provider list: endpoints, suggested models, per-provider request settings. |
+| `lib/api.js` | Streaming client for the Anthropic and OpenAI-compatible formats: SSE parsing and error mapping. |
 | `lib/prompt.js` | System prompt and message construction. |
 | `lib/store.js` | Everything stored in `chrome.storage.local`. |
 | `lib/markdown.js` | Tiny renderer for bold, italics, code and lists that builds DOM nodes only (no `innerHTML`). |
@@ -118,5 +130,5 @@ for outside clicks, Esc and scrolling; those listeners are removed when it close
 ## Privacy
 
 There is no backend, analytics or sync. Each question sends the selected text, its
-surrounding context, the page title and URL, and your active sources to the Anthropic
-API using your key. Nothing else leaves the browser.
+surrounding context, the page title and URL, and your active sources to the provider
+you selected, using your key. Nothing else leaves the browser.
