@@ -59,7 +59,24 @@
     close.addEventListener('click', closeCard);
     header.append(el('span', 'brand', 'Gloss'), close);
     const body = el('div', 'body');
-    box.append(header, body);
+
+    const footer = el('form', 'footer');
+    const input = el('input');
+    input.type = 'text';
+    input.placeholder = 'Ask a follow-up…';
+    input.setAttribute('aria-label', 'Ask a follow-up');
+    input.autocomplete = 'off';
+    input.maxLength = 500;
+    footer.append(input);
+    footer.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const question = input.value.trim();
+      if (!question || card.busy) return; // keep the text until the current answer ends
+      input.value = '';
+      askFollowUp(question);
+    });
+
+    box.append(header, body, footer);
     root.append(box);
 
     card = { host, box, body, selection, mode: 'auto', turns: [] };
@@ -113,6 +130,16 @@
       mode: c.mode,
       turns: c.turns,
     });
+  }
+
+  // Continue the conversation about the same selection. It lives only in card.turns
+  // and is discarded when the card closes.
+  function askFollowUp(question) {
+    const c = card;
+    if (c.turns.at(-1)?.role === 'user') c.turns.pop(); // the previous follow-up failed
+    c.turns.push({ role: 'user', content: question });
+    c.body.append(el('p', 'question', question));
+    startAnswer();
   }
 
   function disconnect(c) {

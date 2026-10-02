@@ -71,13 +71,36 @@ header {
 .body p { margin: 0 0 0.55em; }
 .body ul, .body ol { margin: 0 0 0.55em; padding-left: 1.3em; }
 .body li { margin: 0.15em 0; }
-.body :last-child { margin-bottom: 0; }
+.answer > :last-child { margin-bottom: 0; }
 .body code {
   padding: 0 3px;
   background: var(--field);
   border-radius: 4px;
   font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+.question {
+  margin: 10px 0 6px;
+  padding-top: 8px;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.footer { margin: 0; padding: 6px; border-top: 1px solid var(--border); }
+.footer input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px 8px;
+  color: var(--fg);
+  background: var(--field);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12.5px;
+}
+.footer input::placeholder { color: var(--muted); }
 
 .error { color: var(--danger); }
 
