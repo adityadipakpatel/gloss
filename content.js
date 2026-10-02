@@ -15,6 +15,7 @@
   const CARD_MIN_HEIGHT = 150;
   const GAP = 8; // between selection and card
   const MARGIN = 8; // between card and viewport edge
+  const SCROLL_CLOSE_PX = 80; // scroll distance that dismisses the card
   const BLOCK_SELECTOR =
     'p, li, td, th, dd, dt, blockquote, figcaption, pre, h1, h2, h3, h4, h5, h6, article, section, div';
 
@@ -64,6 +65,7 @@
     card = { host, box, body, selection };
     placeCard();
     document.documentElement.append(host);
+    addDismissListeners(card);
 
     body.append(el('p', '', 'Gloss is alive. The answer will appear here.'));
   }
@@ -97,10 +99,46 @@
     card.box.style.setProperty('--max-height', `${maxHeight}px`);
   }
 
+  // Close on click outside, Esc, or once the anchor has scrolled a little way. These
+  // are the only page-level listeners Gloss adds, and closeCard() removes them all.
+  function addDismissListeners(c) {
+    const startTop = c.selection.getRect().top;
+    const startScrollY = window.scrollY;
+
+    // Events from inside the closed shadow root are retargeted to the host.
+    c.onPointerDown = (event) => {
+      if (event.target !== c.host) closeCard();
+    };
+    c.onKeyDown = (event) => {
+      if (event.key === 'Escape') closeCard();
+    };
+    c.onScroll = (event) => {
+      if (event.target === c.host) return; // scrolling inside the card
+      // Measuring the anchor (not window.scrollY) also catches nested scroll areas.
+      const rect = c.selection.getRect();
+      const moved =
+        rect.width || rect.height
+          ? Math.abs(rect.top - startTop)
+          : Math.abs(window.scrollY - startScrollY);
+      if (moved > SCROLL_CLOSE_PX) closeCard();
+    };
+    document.addEventListener('pointerdown', c.onPointerDown, true);
+    document.addEventListener('keydown', c.onKeyDown, true);
+    window.addEventListener('scroll', c.onScroll, { capture: true, passive: true });
+
+    // Keep typing in the card from triggering the page's keyboard shortcuts.
+    for (const type of ['keydown', 'keyup', 'keypress']) {
+      c.box.addEventListener(type, (event) => event.stopPropagation());
+    }
+  }
+
   function closeCard() {
     if (!card) return;
     const closing = card;
     card = null;
+    document.removeEventListener('pointerdown', closing.onPointerDown, true);
+    document.removeEventListener('keydown', closing.onKeyDown, true);
+    window.removeEventListener('scroll', closing.onScroll, { capture: true });
     closing.host.remove();
   }
 
