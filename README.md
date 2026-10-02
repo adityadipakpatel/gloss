@@ -27,16 +27,23 @@ Gloss calls the Anthropic API directly with your own key.
 3. Paste it into the **API key** field in Gloss settings and click **Save**.
 4. Click **Test connection** to check it works.
 
+An API key is required. A Claude.ai subscription (Pro or Max) can't be used instead: it
+is billed separately from the API and has no supported way to power a third-party
+extension. With the default Haiku model and no sources attached, a short question costs
+roughly a tenth of a cent.
+
 The key is stored in `chrome.storage.local` in this browser only. It is never logged and
 is sent nowhere except `https://api.anthropic.com`.
 
 ## Use it
 
-- Select text, right-click, **Ask Gloss**. Or select text and press **Alt+G**.
+- Works on any normal website. Select text, right-click, **Ask Gloss**. Or select text
+  and press **Alt+G** (**Option+G** on a Mac).
 - The card streams a short answer:
   - a word or short phrase gets a definition, then what it means in this context;
   - a longer passage gets a simple two or three sentence explanation;
-  - a question (including multiple choice) gets the answer in bold, then a one-line reason.
+  - a question (multiple choice, fill in the blank, true/false, or any short question)
+    gets the answer in bold, then a very short reason.
 - The dropdown in the card header (Auto / Define / Explain simply / Answer a question)
   overrides the automatic choice and asks again.
 - Type in **Ask a follow-up…** to continue the conversation about the same selection.
@@ -45,13 +52,14 @@ is sent nowhere except `https://api.anthropic.com`.
 
 ### Keyboard shortcut
 
-The default is **Alt+G**. Chrome doesn't assign it if another extension already uses it;
+The default is **Alt+G**, which on a Mac is **Option (⌥)+G**. Chrome doesn't assign it if another extension already uses it;
 change or set it at `chrome://extensions/shortcuts` (there is a button for this in settings).
 
 ## Settings
 
 - **Model**: Claude Haiku 4.5 (default, fast and cheap) or Claude Sonnet 5.5 (more capable).
-- **Answer length**: Brief (about 50 words) or Normal (about 80 words).
+- **Answer length**: Brief (default: the answer plus a few words of reason) or Normal
+  (the answer plus a one-line reason, up to about 80 words).
 
 ## Reference sources
 
