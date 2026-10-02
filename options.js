@@ -1,5 +1,6 @@
 // Gloss options page: API key, answer settings and reference sources.
-import { getSettings, saveApiKey } from './lib/store.js';
+import { MODELS } from './lib/api.js';
+import { getSettings, saveApiKey, saveSettings } from './lib/store.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -27,7 +28,37 @@ $('toggle-key').addEventListener('click', (event) => {
   event.target.textContent = reveal ? 'Hide' : 'Show';
 });
 
+// --- Answer settings -------------------------------------------------------
+
+const modelSelect = $('model');
+const lengthSelect = $('length');
+
+for (const [id, { label }] of Object.entries(MODELS)) {
+  const option = document.createElement('option');
+  option.value = id;
+  option.textContent = label;
+  modelSelect.append(option);
+}
+
+async function saveAnswerSettings() {
+  await saveSettings({ model: modelSelect.value, length: lengthSelect.value });
+  setStatus($('settings-status'), 'Saved.', 'ok');
+}
+modelSelect.addEventListener('change', saveAnswerSettings);
+lengthSelect.addEventListener('change', saveAnswerSettings);
+
+// Shortcuts are managed by Chrome; show the current one and link to where it's changed.
+chrome.commands.getAll().then((commands) => {
+  const command = commands.find((c) => c.name === 'ask-gloss');
+  $('shortcut').textContent = command?.shortcut || 'not set';
+});
+$('change-shortcut').addEventListener('click', () => {
+  chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+});
+
 // --- Startup ---------------------------------------------------------------
 
 const settings = await getSettings();
 keyInput.value = settings.apiKey;
+modelSelect.value = settings.model;
+lengthSelect.value = settings.length;

@@ -82,3 +82,11 @@ button:disabled { opacity: 0.55; cursor: default; }
 .status { min-height: 1.5em; margin: 6px 0 0; font-size: 13px; color: var(--muted); }
 .status[data-kind="ok"] { color: var(--ok); }
 .status[data-kind="error"] { color: var(--danger); }
+
+kbd {
+  padding: 1px 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
