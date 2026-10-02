@@ -45,6 +45,18 @@ header {
   letter-spacing: 0.02em;
 }
 
+.mode {
+  max-width: 150px;
+  padding: 2px 4px;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
 .close {
   width: 24px;
   height: 24px;

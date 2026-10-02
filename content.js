@@ -16,6 +16,13 @@
   const GAP = 8; // between selection and card
   const MARGIN = 8; // between card and viewport edge
   const SCROLL_CLOSE_PX = 80; // scroll distance that dismisses the card
+  // Keep in sync with MODES in lib/prompt.js.
+  const MODES = [
+    ['auto', 'Auto'],
+    ['define', 'Define'],
+    ['explain', 'Explain simply'],
+    ['answer', 'Answer a question'],
+  ];
   const BLOCK_SELECTOR =
     'p, li, td, th, dd, dt, blockquote, figcaption, pre, h1, h2, h3, h4, h5, h6, article, section, div';
 
@@ -57,7 +64,22 @@
     close.title = 'Close';
     close.setAttribute('aria-label', 'Close');
     close.addEventListener('click', closeCard);
-    header.append(el('span', 'brand', 'Gloss'), close);
+    const mode = el('select', 'mode');
+    mode.title = 'Answer style';
+    mode.setAttribute('aria-label', 'Answer style');
+    for (const [value, label] of MODES) {
+      const option = el('option', '', label);
+      option.value = value;
+      mode.append(option);
+    }
+    mode.addEventListener('change', () => {
+      // Overrides the automatic choice: start over with the same selection.
+      card.mode = mode.value;
+      card.turns = [];
+      card.body.replaceChildren();
+      startAnswer();
+    });
+    header.append(el('span', 'brand', 'Gloss'), mode, close);
     const body = el('div', 'body');
 
     const footer = el('form', 'footer');
