@@ -10,6 +10,11 @@
 
   const CONTEXT_CHARS = 300; // how much surrounding text to send either side
   const MAX_SELECTION_CHARS = 6000;
+  const CARD_WIDTH = 320; // keep in sync with card.css.js
+  const CARD_MAX_HEIGHT = 300;
+  const CARD_MIN_HEIGHT = 150;
+  const GAP = 8; // between selection and card
+  const MARGIN = 8; // between card and viewport edge
   const BLOCK_SELECTOR =
     'p, li, td, th, dd, dt, blockquote, figcaption, pre, h1, h2, h3, h4, h5, h6, article, section, div';
 
@@ -63,11 +68,33 @@
     body.append(el('p', '', 'Gloss is alive. The answer will appear here.'));
   }
 
-  // Put the card just below the selection (document coordinates, so it scrolls with it).
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+
+  // Place the card just below the selection, or above it when there's more room
+  // there, clamped to the viewport. Coordinates are document-relative so the card
+  // scrolls with the text it explains.
   function placeCard() {
     const rect = card.selection.getRect();
-    card.host.style.setProperty('left', `${rect.left + window.scrollX}px`, 'important');
-    card.host.style.setProperty('top', `${rect.bottom + 8 + window.scrollY}px`, 'important');
+    const viewW = document.documentElement.clientWidth;
+    const viewH = window.innerHeight;
+    const width = Math.min(CARD_WIDTH, viewW - 2 * MARGIN);
+    const left = clamp(rect.left, MARGIN, viewW - width - MARGIN);
+
+    const roomBelow = viewH - rect.bottom - GAP - MARGIN;
+    const roomAbove = rect.top - GAP - MARGIN;
+    const above = roomBelow < CARD_MAX_HEIGHT && roomAbove > roomBelow;
+    const maxHeight = clamp(above ? roomAbove : roomBelow, CARD_MIN_HEIGHT, CARD_MAX_HEIGHT);
+    // "edge" is the card's top edge when below the selection and its bottom edge when
+    // above it: translateY(-100%) then lets the card grow upward as the answer streams.
+    const edge = above
+      ? clamp(rect.top - GAP, MARGIN + maxHeight, viewH - MARGIN)
+      : clamp(rect.bottom + GAP, MARGIN, viewH - MARGIN - maxHeight);
+
+    const style = card.host.style;
+    style.setProperty('left', `${left + window.scrollX}px`, 'important');
+    style.setProperty('top', `${edge + window.scrollY}px`, 'important');
+    style.setProperty('transform', above ? 'translateY(-100%)' : 'none', 'important');
+    card.box.style.setProperty('--max-height', `${maxHeight}px`);
   }
 
   function closeCard() {
