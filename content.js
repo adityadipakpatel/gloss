@@ -17,7 +17,64 @@
     if (msg?.type !== 'gloss:ask') return;
     sendResponse({ ok: true });
     const selection = captureSelection(msg.selectionText);
-    if (!selection) return;
+    if (selection) openCard(selection);
+  }
+
+  let card = null; // state of the open card, or null
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function openCard(selection) {
+    closeCard();
+
+    // A custom tag name keeps page rules like "div { ... }" off the host; the closed
+    // shadow root keeps page CSS and scripts out of the card itself.
+    const host = document.createElement('gloss-card');
+    host.style.cssText =
+      'all: initial !important; position: absolute !important; z-index: 2147483647 !important;';
+    const root = host.attachShadow({ mode: 'closed' });
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(globalThis.GLOSS_CARD_CSS);
+    root.adoptedStyleSheets = [sheet];
+
+    const box = el('div', 'card');
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-label', 'Gloss');
+    const header = el('header');
+    const close = el('button', 'close', '×');
+    close.type = 'button';
+    close.title = 'Close';
+    close.setAttribute('aria-label', 'Close');
+    close.addEventListener('click', closeCard);
+    header.append(el('span', 'brand', 'Gloss'), close);
+    const body = el('div', 'body');
+    box.append(header, body);
+    root.append(box);
+
+    card = { host, box, body, selection };
+    placeCard();
+    document.documentElement.append(host);
+
+    body.append(el('p', '', 'Gloss is alive. The answer will appear here.'));
+  }
+
+  // Put the card just below the selection (document coordinates, so it scrolls with it).
+  function placeCard() {
+    const rect = card.selection.getRect();
+    card.host.style.setProperty('left', `${rect.left + window.scrollX}px`, 'important');
+    card.host.style.setProperty('top', `${rect.bottom + 8 + window.scrollY}px`, 'important');
+  }
+
+  function closeCard() {
+    if (!card) return;
+    const closing = card;
+    card = null;
+    closing.host.remove();
   }
 
   const squash = (s) => s.replace(/\s+/g, ' ');
@@ -84,6 +141,7 @@
 
   chrome.runtime.onMessage.addListener(onMessage);
   globalThis.__glossTeardown = () => {
+    closeCard();
     chrome.runtime.onMessage.removeListener(onMessage);
   };
 })();

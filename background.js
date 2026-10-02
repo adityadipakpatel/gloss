@@ -3,7 +3,7 @@
 
 const MENU_ID = 'ask-gloss';
 // Injected on demand, in this order. Nothing runs on a page until Gloss is triggered there.
-const CONTENT_FILES = ['content.js'];
+const CONTENT_FILES = ['card.css.js', 'content.js'];
 
 chrome.runtime.onInstalled.addListener(() => {
   // removeAll first: reloading the unpacked extension fires onInstalled again.
