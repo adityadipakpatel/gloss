@@ -35,14 +35,15 @@
         <select id="model"></select>
         <label for="length">Answer length</label>
         <select id="length">
-          <option value="brief">Brief (about 50 words)</option>
-          <option value="normal">Normal (about 80 words)</option>
+          <option value="brief">Brief (the answer and a few words of reason)</option>
+          <option value="normal">Normal (the answer and a one-line reason, up to about 80 words)</option>
         </select>
         <label>Keyboard shortcut</label>
         <div class="row">
           <span>Select text, then press <kbd id="shortcut">Alt+G</kbd></span>
           <button id="change-shortcut" type="button" class="secondary">Change shortcut</button>
         </div>
+        <p class="hint">On a Mac, Alt is the Option (⌥) key, so the default is Option+G.</p>
         <p id="settings-status" class="status" role="status"></p>
       </section>
 
