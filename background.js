@@ -26,6 +26,9 @@ chrome.commands.onCommand.addListener((command, tab) => {
   if (command === 'ask-gloss') ask(tab, 0);
 });
 
+// The toolbar icon has no popup; clicking it opens the settings page.
+chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
+
 // Tell the content script in the given frame to open a card, injecting it first if needed.
 async function ask(tab, frameId, selectionText = '') {
   if (!tab || tab.id == null || tab.id < 0) return;

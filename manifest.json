@@ -13,6 +13,10 @@
   "action": {
     "default_title": "Gloss"
   },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
   "commands": {
     "ask-gloss": {
       "suggested_key": { "default": "Alt+G" },

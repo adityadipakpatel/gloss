@@ -1,0 +1,84 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --fg: #1f2328;
+  --muted: #667085;
+  --border: #d9dde3;
+  --accent: #9a6700;
+  --accent-fg: #ffffff;
+  --danger: #b3261e;
+  --ok: #1a7f37;
+  --warn-bg: #fff8e5;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--fg);
+  background: var(--bg);
+  font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+main {
+  max-width: 660px;
+  margin: 0 auto;
+  padding: 32px 20px 64px;
+}
+
+.page-header h1 { margin: 0; font-size: 24px; color: var(--accent); }
+.page-header p { margin: 4px 0 0; color: var(--muted); }
+
+section {
+  margin-top: 20px;
+  padding: 18px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+h2 { margin: 0 0 12px; font-size: 16px; }
+
+label { display: block; margin: 12px 0 4px; font-weight: 600; }
+h2 + label { margin-top: 0; }
+
+input[type="text"],
+input[type="password"],
+select,
+textarea {
+  width: 100%;
+  padding: 7px 9px;
+  color: var(--fg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+textarea { min-height: 120px; resize: vertical; }
+select { width: auto; min-width: 260px; max-width: 100%; }
+
+button {
+  padding: 7px 14px;
+  color: var(--accent-fg);
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+button.secondary { color: var(--fg); background: var(--surface); border-color: var(--border); }
+button:disabled { opacity: 0.55; cursor: default; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.row > input { flex: 1 1 220px; }
+
+.hint { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
+.hint a { color: var(--accent); }
+
+.status { min-height: 1.5em; margin: 6px 0 0; font-size: 13px; color: var(--muted); }
+.status[data-kind="ok"] { color: var(--ok); }
+.status[data-kind="error"] { color: var(--danger); }
