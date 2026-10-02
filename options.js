@@ -1,5 +1,6 @@
-// Gloss options page: API key, answer settings and reference sources.
-import { MODELS, describeError, testConnection } from './lib/api.js';
+// Gloss options page: provider, API keys, answer settings and reference sources.
+import { describeError, testConnection } from './lib/api.js';
+import { PROVIDERS, defaultModel } from './lib/providers.js';
 import {
   SOURCE_TOKEN_WARNING,
   addSource,
@@ -7,6 +8,7 @@ import {
   getSettings,
   listSources,
   saveApiKey,
+  saveModel,
   saveSettings,
   setSourceActive,
 } from './lib/store.js';
@@ -18,14 +20,77 @@ function setStatus(node, text, kind = '') {
   node.dataset.kind = kind;
 }
 
-// --- API key ---------------------------------------------------------------
+function option(value, label) {
+  const node = document.createElement('option');
+  node.value = value;
+  node.textContent = label;
+  return node;
+}
 
+let state = await getSettings(); // { provider, apiKeys, models, length, ... }
+
+// --- Provider, API key and model --------------------------------------------
+
+const providerSelect = $('provider');
 const keyInput = $('api-key');
 const keyStatus = $('key-status');
+const modelSelect = $('model');
+const customModel = $('custom-model');
+const OTHER = '__other';
+
+for (const [id, { label }] of Object.entries(PROVIDERS)) providerSelect.append(option(id, label));
+
+// Fill the key and model fields for the selected provider.
+function showProvider() {
+  const provider = state.provider;
+  const p = PROVIDERS[provider];
+  providerSelect.value = provider;
+  $('provider-note').textContent = p.note;
+  $('api-key-label').textContent = `${p.label} API key`;
+  $('key-link').href = p.keyUrl;
+  keyInput.value = state.apiKeys[provider] || '';
+  keyInput.placeholder = p.keyPlaceholder;
+  setStatus(keyStatus, '');
+  setStatus($('model-status'), '');
+
+  modelSelect.replaceChildren(...p.models.map((m) => option(m, m)), option(OTHER, 'Other model ID…'));
+  const model = state.models[provider]?.trim() || defaultModel(provider);
+  const known = p.models.includes(model);
+  modelSelect.value = known ? model : OTHER;
+  customModel.value = known ? '' : model;
+  customModel.hidden = known;
+}
+
+const currentModel = () =>
+  (modelSelect.value === OTHER ? customModel.value.trim() : modelSelect.value) ||
+  defaultModel(state.provider);
+
+async function storeModel() {
+  const model = currentModel();
+  state.models = { ...state.models, [state.provider]: model };
+  await saveModel(state.provider, model);
+  setStatus($('model-status'), `Using ${model}.`, 'ok');
+}
+
+providerSelect.addEventListener('change', async () => {
+  state.provider = providerSelect.value;
+  await saveSettings({ provider: state.provider });
+  showProvider();
+});
+
+modelSelect.addEventListener('change', () => {
+  customModel.hidden = modelSelect.value !== OTHER;
+  if (modelSelect.value === OTHER) customModel.focus();
+  else storeModel();
+});
+customModel.addEventListener('change', () => {
+  if (customModel.value.trim()) storeModel();
+});
 
 async function saveKey() {
   const key = keyInput.value.trim();
-  await saveApiKey(key);
+  state.apiKeys = { ...state.apiKeys, [state.provider]: key };
+  await saveApiKey(state.provider, key);
   setStatus(keyStatus, key ? 'Key saved.' : 'Key removed.', 'ok');
   return key;
 }
@@ -47,8 +112,8 @@ $('test-key').addEventListener('click', async (event) => {
   event.target.disabled = true;
   setStatus(keyStatus, 'Testing…');
   try {
-    await testConnection(key, modelSelect.value);
-    setStatus(keyStatus, 'Connection works. Key saved.', 'ok');
+    await testConnection(state.provider, key, currentModel());
+    setStatus(keyStatus, `Connection works with ${currentModel()}. Key saved.`, 'ok');
   } catch (err) {
     setStatus(keyStatus, describeError(err).message, 'error');
   } finally {
@@ -58,22 +123,11 @@ $('test-key').addEventListener('click', async (event) => {
 
 // --- Answer settings -------------------------------------------------------
 
-const modelSelect = $('model');
 const lengthSelect = $('length');
-
-for (const [id, { label }] of Object.entries(MODELS)) {
-  const option = document.createElement('option');
-  option.value = id;
-  option.textContent = label;
-  modelSelect.append(option);
-}
-
-async function saveAnswerSettings() {
-  await saveSettings({ model: modelSelect.value, length: lengthSelect.value });
+lengthSelect.addEventListener('change', async () => {
+  await saveSettings({ length: lengthSelect.value });
   setStatus($('settings-status'), 'Saved.', 'ok');
-}
-modelSelect.addEventListener('change', saveAnswerSettings);
-lengthSelect.addEventListener('change', saveAnswerSettings);
+});
 
 // Shortcuts are managed by Chrome; show the current one and link to where it's changed.
 chrome.commands.getAll().then((commands) => {
@@ -150,8 +204,8 @@ async function renderSources() {
   warning.hidden = tokens <= SOURCE_TOKEN_WARNING;
   warning.textContent =
     `Active sources total about ${number(tokens)} tokens, over the recommended ` +
-    `${number(SOURCE_TOKEN_WARNING)}. Every question will be slower and cost more, and may not ` +
-    'fit at all: Claude Haiku 4.5 accepts roughly 200,000 tokens. Turn some sources off.';
+    `${number(SOURCE_TOKEN_WARNING)}. Every question will be slower and cost more, and may exceed ` +
+    "the model's context window or a free tier's limits. Turn some sources off.";
 }
 
 // Below this many characters per page, a PDF is probably scanned images.
@@ -250,8 +304,6 @@ $('text-add').addEventListener('click', async () => {
 
 // --- Startup ---------------------------------------------------------------
 
-const settings = await getSettings();
-keyInput.value = settings.apiKey;
-modelSelect.value = settings.model;
-lengthSelect.value = settings.length;
+showProvider();
+lengthSelect.value = state.length;
 renderSources();

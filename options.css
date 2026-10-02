@@ -71,6 +71,7 @@ textarea {
   font: inherit;
 }
 textarea { min-height: 120px; resize: vertical; }
+#custom-model { margin-top: 8px; max-width: 420px; }
 select { width: auto; min-width: 260px; max-width: 100%; }
 
 button {

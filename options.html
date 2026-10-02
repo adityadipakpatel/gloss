@@ -13,26 +13,34 @@
         <p>Select text on any page, right-click and choose <strong>Ask Gloss</strong>.</p>
       </header>
 
-      <section aria-labelledby="key-heading">
-        <h2 id="key-heading">API key</h2>
-        <label for="api-key">Anthropic API key</label>
+      <section aria-labelledby="provider-heading">
+        <h2 id="provider-heading">AI provider</h2>
+        <label for="provider">Provider</label>
+        <select id="provider"></select>
+        <p id="provider-note" class="hint"></p>
+
+        <label for="api-key" id="api-key-label">API key</label>
         <div class="row">
-          <input id="api-key" type="password" autocomplete="off" spellcheck="false" placeholder="sk-ant-…" />
+          <input id="api-key" type="password" autocomplete="off" spellcheck="false" />
           <button id="toggle-key" type="button" class="secondary">Show</button>
           <button id="save-key" type="button">Save</button>
           <button id="test-key" type="button" class="secondary">Test connection</button>
         </div>
         <p id="key-status" class="status" role="status"></p>
         <p class="hint">
-          Stored only in this browser and sent only to api.anthropic.com. Create a key in the
-          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">Claude Console</a>.
+          Each provider's key is stored only in this browser and sent only to that provider.
+          <a id="key-link" href="#" target="_blank" rel="noopener">Get a key</a>.
         </p>
+
+        <label for="model">Model</label>
+        <select id="model"></select>
+        <input id="custom-model" type="text" spellcheck="false" autocomplete="off" placeholder="Model ID, e.g. gemini-flash-latest" hidden />
+        <p class="hint">Choose "Other model ID…" to type any model the provider offers.</p>
+        <p id="model-status" class="status" role="status"></p>
       </section>
 
       <section aria-labelledby="answers-heading">
         <h2 id="answers-heading">Answers</h2>
-        <label for="model">Model</label>
-        <select id="model"></select>
         <label for="length">Answer length</label>
         <select id="length">
           <option value="brief">Brief (the answer and a few words of reason)</option>
@@ -51,7 +59,8 @@
         <h2 id="sources-heading">Reference sources</h2>
         <p class="hint first">
           Active sources are attached to every question, so Gloss can draw on your own notes and
-          documents. They are stored in this browser and sent only to Anthropic, along with your questions.
+          documents. They are stored in this browser and sent only to your selected provider, along with
+          your questions.
         </p>
 
         <div class="row">

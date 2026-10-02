@@ -1,11 +1,10 @@
 // Gloss background service worker.
 // Owns the context menu, the keyboard shortcut and the API calls.
-import { ApiError, MODELS, describeError, streamMessage } from './lib/api.js';
+import { ApiError, describeError, streamAnswer } from './lib/api.js';
 import { buildFirstMessage, buildSystem } from './lib/prompt.js';
+import { PROVIDERS, contextTokens } from './lib/providers.js';
 import { getActiveSources, getSettings } from './lib/store.js';
 
-const FIRST_ANSWER_TOKENS = 400;
-const FOLLOW_UP_TOKENS = 800;
 // Room left in the context window for instructions, the selection and the answer.
 const RESERVED_TOKENS = 5000;
 
@@ -90,27 +89,26 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener(async (msg) => {
     if (msg.type !== 'ask') return;
     try {
-      const { apiKey, model, length } = await getSettings();
+      const { provider, apiKey, model, length } = await getSettings();
       if (!apiKey) throw new ApiError('no_key');
       // msg.turns holds the follow-up conversation so far (assistant/user alternating).
       const turns = msg.turns || [];
       // Fail early with a clear message when the sources can't fit. This is only an
-      // estimate; the API's own "prompt is too long" error maps to the same message.
+      // estimate; the provider's own "too long" error maps to the same message.
       const sources = await getActiveSources();
       const sourceTokens = sources.reduce((sum, s) => sum + s.tokens, 0);
-      if (sourceTokens > MODELS[model].contextTokens - RESERVED_TOKENS) {
+      if (sourceTokens > contextTokens(provider, model) - RESERVED_TOKENS) {
         throw new ApiError('too_large');
       }
-      const body = {
+      const limits = PROVIDERS[provider].maxTokens;
+      await streamAnswer({
+        provider,
+        apiKey,
         model,
-        max_tokens: turns.length ? FOLLOW_UP_TOKENS : FIRST_ANSWER_TOKENS,
+        maxTokens: turns.length ? limits.followUp : limits.first,
         // Active sources go in their own cached system block (see buildSystem).
         system: buildSystem({ sources, mode: msg.mode, length }),
         messages: [buildFirstMessage(msg), ...turns],
-      };
-      await streamMessage({
-        apiKey,
-        body,
         signal,
         onText: (text) => send({ type: 'delta', text }),
       });

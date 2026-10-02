@@ -5,7 +5,12 @@
   "description": "Select text, right-click, Ask Gloss: a short AI explanation in a small card next to your selection.",
   "minimum_chrome_version": "120",
   "permissions": ["contextMenus", "storage", "unlimitedStorage", "activeTab", "scripting"],
-  "host_permissions": ["https://api.anthropic.com/*"],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*",
+    "https://api.groq.com/*",
+    "https://api.deepseek.com/*",
+    "https://api.anthropic.com/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
