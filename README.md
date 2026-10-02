@@ -25,8 +25,8 @@ click **Save**, then **Test connection**.
 
 | Provider | Cost | Get a key | Default model |
 | --- | --- | --- | --- |
-| Google Gemini (default) | Free tier | [Google AI Studio](https://aistudio.google.com/apikey) | `gemini-3.8-flash` |
-| Groq | Free tier | [GroqCloud console](https://console.groq.com/keys) | `openai/gpt-oss-120b` |
+| Groq (default) | Free tier | [GroqCloud console](https://console.groq.com/keys) | `openai/gpt-oss-120b` |
+| Google Gemini | Free tier | [Google AI Studio](https://aistudio.google.com/apikey) | `gemini-3.8-flash` |
 | DeepSeek | Pay as you go, very cheap | [DeepSeek platform](https://platform.deepseek.com/api_keys) | `deepseek-flash` |
 | Anthropic (Claude) | Paid API credits | [Claude Console](https://console.anthropic.com/settings/keys) | `claude-haiku-4-5-20251001` |
 
