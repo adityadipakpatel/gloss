@@ -1,5 +1,5 @@
 // Gloss options page: API key, answer settings and reference sources.
-import { MODELS } from './lib/api.js';
+import { MODELS, describeError, testConnection } from './lib/api.js';
 import { getSettings, saveApiKey, saveSettings } from './lib/store.js';
 
 const $ = (id) => document.getElementById(id);
@@ -26,6 +26,25 @@ $('toggle-key').addEventListener('click', (event) => {
   const reveal = keyInput.type === 'password';
   keyInput.type = reveal ? 'text' : 'password';
   event.target.textContent = reveal ? 'Hide' : 'Show';
+});
+
+// Saves whatever is in the field, then makes one tiny request with it.
+$('test-key').addEventListener('click', async (event) => {
+  const key = await saveKey();
+  if (!key) {
+    setStatus(keyStatus, 'Enter an API key first.', 'error');
+    return;
+  }
+  event.target.disabled = true;
+  setStatus(keyStatus, 'Testing…');
+  try {
+    await testConnection(key, modelSelect.value);
+    setStatus(keyStatus, 'Connection works. Key saved.', 'ok');
+  } catch (err) {
+    setStatus(keyStatus, describeError(err).message, 'error');
+  } finally {
+    event.target.disabled = false;
+  }
 });
 
 // --- Answer settings -------------------------------------------------------
