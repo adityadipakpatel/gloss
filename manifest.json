@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Gloss",
+  "version": "0.1.0",
+  "description": "Select text, right-click, Ask Gloss: a short AI explanation in a small card next to your selection.",
+  "minimum_chrome_version": "120",
+  "permissions": ["contextMenus", "storage", "unlimitedStorage", "activeTab", "scripting"],
+  "host_permissions": ["https://api.anthropic.com/*"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Gloss"
+  }
+}

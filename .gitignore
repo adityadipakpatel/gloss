@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+*.log
+
+# Local config and secrets: never commit keys or extracted source text
+.env
+.env.*
+*.local
+*.local.json
+config.local.*
+sources/
