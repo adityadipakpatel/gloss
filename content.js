@@ -201,7 +201,11 @@
       const button = el('button', 'action', 'Open settings');
       button.type = 'button';
       button.addEventListener('click', () => {
-        chrome.runtime.sendMessage({ type: 'gloss:open-options' }).catch(() => {});
+        try {
+          chrome.runtime.sendMessage({ type: 'gloss:open-options' }).catch(() => {});
+        } catch {
+          // Extension context invalidated (reloaded); nothing to open from here.
+        }
         closeCard();
       });
       error.append(button);
