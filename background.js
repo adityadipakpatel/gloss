@@ -1,11 +1,13 @@
 // Gloss background service worker.
 // Owns the context menu, the keyboard shortcut and the API calls.
-import { ApiError, describeError, streamMessage } from './lib/api.js';
+import { ApiError, MODELS, describeError, streamMessage } from './lib/api.js';
 import { buildFirstMessage, buildSystem } from './lib/prompt.js';
 import { getActiveSources, getSettings } from './lib/store.js';
 
 const FIRST_ANSWER_TOKENS = 400;
 const FOLLOW_UP_TOKENS = 800;
+// Room left in the context window for instructions, the selection and the answer.
+const RESERVED_TOKENS = 5000;
 
 const MENU_ID = 'ask-gloss';
 // Injected on demand, in this order. Nothing runs on a page until Gloss is triggered there.
@@ -28,6 +30,11 @@ chrome.commands.onCommand.addListener((command, tab) => {
 
 // The toolbar icon has no popup; clicking it opens the settings page.
 chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
+
+// Content scripts can't open the options page themselves (the card's "Open settings").
+chrome.runtime.onMessage.addListener((msg) => {
+  if (msg?.type === 'gloss:open-options') chrome.runtime.openOptionsPage();
+});
 
 // Tell the content script in the given frame to open a card, injecting it first if needed.
 async function ask(tab, frameId, selectionText = '') {
@@ -87,11 +94,18 @@ chrome.runtime.onConnect.addListener((port) => {
       if (!apiKey) throw new ApiError('no_key');
       // msg.turns holds the follow-up conversation so far (assistant/user alternating).
       const turns = msg.turns || [];
+      // Fail early with a clear message when the sources can't fit. This is only an
+      // estimate; the API's own "prompt is too long" error maps to the same message.
+      const sources = await getActiveSources();
+      const sourceTokens = sources.reduce((sum, s) => sum + s.tokens, 0);
+      if (sourceTokens > MODELS[model].contextTokens - RESERVED_TOKENS) {
+        throw new ApiError('too_large');
+      }
       const body = {
         model,
         max_tokens: turns.length ? FOLLOW_UP_TOKENS : FIRST_ANSWER_TOKENS,
         // Active sources go in their own cached system block (see buildSystem).
-        system: buildSystem({ sources: await getActiveSources(), mode: msg.mode, length }),
+        system: buildSystem({ sources, mode: msg.mode, length }),
         messages: [buildFirstMessage(msg), ...turns],
       };
       await streamMessage({

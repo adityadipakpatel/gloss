@@ -114,6 +114,11 @@
   function startAnswer() {
     const c = card;
     disconnect(c);
+    if (c.selection.truncated && !c.turns.length) {
+      c.body.append(
+        el('p', 'note', `Long selection: only the first ${MAX_SELECTION_CHARS.toLocaleString()} characters were sent.`)
+      );
+    }
     c.answerText = '';
     c.answerEl = el('div', 'answer');
     const loading = el('div', 'loading');
@@ -142,7 +147,7 @@
       else if (msg.type === 'error') showError(msg);
     });
     port.onDisconnect.addListener(() => {
-      if (current() && c.busy) showError({ message: 'Gloss was interrupted. Try again.' });
+      if (current() && c.busy) showError({ message: 'Gloss was interrupted.', action: 'retry' });
     });
     const { text, before, after, truncated } = c.selection;
     port.postMessage({
@@ -179,17 +184,37 @@
     const c = card;
     disconnect(c);
     if (!c.answerText.trim()) {
-      showError({ message: 'No answer came back. Try again.' });
+      showError({ message: 'No answer came back.', action: 'retry' });
       return;
     }
     c.turns.push({ role: 'assistant', content: c.answerText });
   }
 
-  // Replace the loading dots (or a partial answer) with an error message.
-  function showError({ message }) {
+  // Replace the loading dots (or a partial answer) with an error message and, where
+  // it helps, a button: action is 'settings', 'retry' or null.
+  function showError({ message, action }) {
     const c = card;
     disconnect(c);
-    c.answerEl.replaceChildren(el('p', 'error', message));
+    const error = el('div', 'error');
+    error.append(el('p', '', message));
+    if (action === 'settings') {
+      const button = el('button', 'action', 'Open settings');
+      button.type = 'button';
+      button.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ type: 'gloss:open-options' }).catch(() => {});
+        closeCard();
+      });
+      error.append(button);
+    } else if (action === 'retry') {
+      const button = el('button', 'action', 'Try again');
+      button.type = 'button';
+      button.addEventListener('click', () => {
+        c.answerEl.remove();
+        startAnswer();
+      });
+      error.append(button);
+    }
+    c.answerEl.replaceChildren(error);
     c.body.scrollTop = c.body.scrollHeight;
   }
 

@@ -114,7 +114,20 @@ header {
 }
 .footer input::placeholder { color: var(--muted); }
 
-.error { color: var(--danger); }
+.error p { color: var(--danger); }
+.action {
+  margin-top: 2px;
+  padding: 4px 10px;
+  color: var(--bg);
+  background: var(--accent);
+  border: 0;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.note { margin: 0 0 8px; color: var(--muted); font-size: 12px; }
 
 .loading { display: flex; gap: 4px; padding: 5px 0; }
 .loading span {
