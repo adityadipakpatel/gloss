@@ -12,5 +12,11 @@
   },
   "action": {
     "default_title": "Gloss"
+  },
+  "commands": {
+    "ask-gloss": {
+      "suggested_key": { "default": "Alt+G" },
+      "description": "Ask Gloss about the selected text"
+    }
   }
 }
