@@ -154,6 +154,86 @@ async function renderSources() {
     'fit at all: Claude Haiku 4.5 accepts roughly 200,000 tokens. Turn some sources off.';
 }
 
+// Below this many characters per page, a PDF is probably scanned images.
+const SCANNED_CHARS_PER_PAGE = 100;
+
+let pdfjs = null; // loaded on first use; it's a large library
+
+// Extracts text page by page. onProgress(pageNumber, pageCount) after each page.
+async function extractPdf(file, onProgress) {
+  if (!pdfjs) {
+    pdfjs = await import('./lib/pdf.min.mjs');
+    pdfjs.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL('lib/pdf.worker.min.mjs');
+  }
+  const task = pdfjs.getDocument({
+    data: await file.arrayBuffer(),
+    isEvalSupported: false, // extension pages can't eval
+  });
+  try {
+    const pdf = await task.promise;
+    const pages = [];
+    for (let n = 1; n <= pdf.numPages; n++) {
+      const page = await pdf.getPage(n);
+      const content = await page.getTextContent();
+      pages.push(content.items.map((item) => (item.str ?? '') + (item.hasEOL ? '\n' : '')).join(''));
+      page.cleanup();
+      onProgress(n, pdf.numPages);
+    }
+    return { text: pages.join('\n\n').trim(), pages: pdf.numPages };
+  } finally {
+    await task.destroy();
+  }
+}
+
+async function addPdf(file) {
+  const progress = $('pdf-progress');
+  progress.textContent = `${file.name}: opening…`;
+  let extracted;
+  try {
+    extracted = await extractPdf(file, (page, total) => {
+      progress.textContent = `${file.name}: page ${page} of ${total}`;
+    });
+  } catch (err) {
+    const reason = err?.name === 'PasswordException' ? 'it is password-protected' : err?.message;
+    return `Couldn't read "${file.name}": ${reason || 'unknown error'}.`;
+  }
+  const { text, pages } = extracted;
+  if (!text) {
+    return `"${file.name}" has no extractable text. It looks like a scanned or image-only PDF, so it wasn't added.`;
+  }
+  const perPage = Math.round(text.length / pages);
+  const scanned = perPage < SCANNED_CHARS_PER_PAGE;
+  await addSource({
+    name: file.name,
+    kind: 'pdf',
+    text,
+    pages,
+    warning: scanned
+      ? `Only about ${perPage} characters per page were found. This may be a scanned PDF with little usable text.`
+      : '',
+  });
+  return scanned ? `"${file.name}" was added, but very little text was found in it.` : null;
+}
+
+$('pdf-button').addEventListener('click', () => $('pdf-input').click());
+$('pdf-input').addEventListener('change', async (event) => {
+  const files = [...event.target.files];
+  event.target.value = ''; // allow picking the same file again later
+  if (!files.length) return;
+  $('pdf-button').disabled = true;
+  setStatus(sourceStatus, '');
+  const problems = [];
+  for (const file of files) {
+    const problem = await addPdf(file);
+    if (problem) problems.push(problem);
+    await renderSources();
+  }
+  $('pdf-progress').textContent = '';
+  $('pdf-button').disabled = false;
+  if (problems.length) setStatus(sourceStatus, problems.join(' '), 'error');
+  else setStatus(sourceStatus, files.length === 1 ? `Added "${files[0].name}".` : `Added ${files.length} PDFs.`, 'ok');
+});
+
 $('text-add').addEventListener('click', async () => {
   const text = $('text-body').value.trim();
   if (!text) {

@@ -53,6 +53,16 @@
           documents. They are stored in this browser and sent only to Anthropic, along with your questions.
         </p>
 
+        <div class="row">
+          <button id="pdf-button" type="button">Upload PDFs</button>
+          <input id="pdf-input" type="file" accept="application/pdf,.pdf" multiple hidden />
+          <span id="pdf-progress" class="meta" role="status"></span>
+        </div>
+        <p class="hint">
+          Text is extracted here in your browser. Scanned or image-only PDFs contain no text to
+          extract and won't work.
+        </p>
+
         <details>
           <summary>Paste text</summary>
           <label for="text-name">Name</label>
