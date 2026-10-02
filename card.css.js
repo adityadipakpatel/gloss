@@ -79,6 +79,24 @@ header {
   font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+.loading { display: flex; gap: 4px; padding: 5px 0; }
+.loading span {
+  width: 5px;
+  height: 5px;
+  background: var(--muted);
+  border-radius: 50%;
+  animation: gloss-pulse 1s ease-in-out infinite;
+}
+.loading span:nth-child(2) { animation-delay: 0.15s; }
+.loading span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes gloss-pulse {
+  0%, 80%, 100% { opacity: 0.25; }
+  40% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading span { animation: none; opacity: 0.6; }
+}
+
 button:focus-visible, select:focus-visible, input:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;

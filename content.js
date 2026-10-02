@@ -67,7 +67,40 @@
     document.documentElement.append(host);
     addDismissListeners(card);
 
-    body.append(el('p', '', 'Gloss is alive. The answer will appear here.'));
+    startAnswer();
+  }
+
+  // Stage 1 placeholder: a hardcoded answer streamed word by word.
+  const FAKE_ANSWER =
+    '**Gloss is working.** This is a hardcoded placeholder, streamed word by word so the card can be tried before the real API is wired in.\n\n- *Selected:* ';
+
+  function startAnswer() {
+    const c = card;
+    c.answerText = '';
+    c.answerEl = el('div', 'answer');
+    const loading = el('div', 'loading');
+    loading.setAttribute('role', 'status');
+    loading.setAttribute('aria-label', 'Thinking');
+    loading.append(el('span'), el('span'), el('span'));
+    c.answerEl.append(loading);
+    c.body.append(c.answerEl);
+
+    const words = (FAKE_ANSWER + c.selection.text.slice(0, 80)).split(/(?<=\s)/);
+    const next = () => {
+      if (card !== c || !words.length) return;
+      appendAnswer(words.shift());
+      c.timer = setTimeout(next, 45);
+    };
+    c.timer = setTimeout(next, 600);
+  }
+
+  // Add streamed text to the current answer and re-render it.
+  function appendAnswer(text) {
+    const c = card;
+    c.answerText += text;
+    const pinned = c.body.scrollHeight - c.body.scrollTop - c.body.clientHeight < 24;
+    c.answerEl.replaceChildren(globalThis.GlossMarkdown.render(c.answerText));
+    if (pinned) c.body.scrollTop = c.body.scrollHeight;
   }
 
   const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
@@ -139,6 +172,7 @@
     document.removeEventListener('pointerdown', closing.onPointerDown, true);
     document.removeEventListener('keydown', closing.onKeyDown, true);
     window.removeEventListener('scroll', closing.onScroll, { capture: true });
+    clearTimeout(closing.timer);
     closing.host.remove();
   }
 
