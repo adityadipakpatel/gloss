@@ -90,3 +90,22 @@ kbd {
   border-radius: 4px;
   font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
+
+.hint.first { margin: 0 0 12px; }
+
+details { margin-top: 12px; }
+summary { color: var(--accent); font-weight: 600; cursor: pointer; }
+.actions { margin-top: 10px; }
+
+#source-list { margin: 12px 0 0; padding: 0; list-style: none; }
+#source-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.source-info { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.source-info strong { display: block; }
+.meta { display: block; color: var(--muted); font-size: 13px; }
+.meta.warn { color: var(--danger); }

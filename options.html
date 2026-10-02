@@ -45,6 +45,29 @@
         </div>
         <p id="settings-status" class="status" role="status"></p>
       </section>
+
+      <section aria-labelledby="sources-heading">
+        <h2 id="sources-heading">Reference sources</h2>
+        <p class="hint first">
+          Active sources are attached to every question, so Gloss can draw on your own notes and
+          documents. They are stored in this browser and sent only to Anthropic, along with your questions.
+        </p>
+
+        <details>
+          <summary>Paste text</summary>
+          <label for="text-name">Name</label>
+          <input id="text-name" type="text" placeholder="e.g. Lecture notes, week 3" />
+          <label for="text-body">Text</label>
+          <textarea id="text-body"></textarea>
+          <div class="row actions">
+            <button id="text-add" type="button">Add text source</button>
+          </div>
+        </details>
+        <p id="source-status" class="status" role="status"></p>
+
+        <ul id="source-list"></ul>
+        <p id="source-empty" class="hint">No sources yet.</p>
+      </section>
     </main>
     <script type="module" src="options.js"></script>
   </body>

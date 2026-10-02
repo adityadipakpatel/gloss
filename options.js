@@ -1,6 +1,13 @@
 // Gloss options page: API key, answer settings and reference sources.
 import { MODELS, describeError, testConnection } from './lib/api.js';
-import { getSettings, saveApiKey, saveSettings } from './lib/store.js';
+import {
+  addSource,
+  deleteSource,
+  getSettings,
+  listSources,
+  saveApiKey,
+  saveSettings,
+} from './lib/store.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -75,9 +82,72 @@ $('change-shortcut').addEventListener('click', () => {
   chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
 });
 
+// --- Sources ---------------------------------------------------------------
+
+const sourceStatus = $('source-status');
+const number = (n) => n.toLocaleString();
+
+function sourceRow(source) {
+  const row = document.createElement('li');
+
+  const info = document.createElement('div');
+  info.className = 'source-info';
+  const name = document.createElement('strong');
+  name.textContent = source.name;
+  const meta = document.createElement('span');
+  meta.className = 'meta';
+  meta.textContent = [
+    source.kind === 'pdf' ? `PDF, ${number(source.pages)} pages` : 'Text',
+    `${number(source.chars)} characters`,
+    `about ${number(source.tokens)} tokens`,
+  ].join(' · ');
+  info.append(name, meta);
+  if (source.warning) {
+    const warning = document.createElement('span');
+    warning.className = 'meta warn';
+    warning.textContent = source.warning;
+    info.append(warning);
+  }
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'secondary';
+  remove.textContent = 'Delete';
+  remove.setAttribute('aria-label', `Delete ${source.name}`);
+  remove.addEventListener('click', async () => {
+    if (!confirm(`Delete "${source.name}"?`)) return;
+    await deleteSource(source.id);
+    renderSources();
+  });
+
+  row.append(info, remove);
+  return row;
+}
+
+async function renderSources() {
+  const sources = await listSources();
+  $('source-list').replaceChildren(...sources.map(sourceRow));
+  $('source-empty').hidden = sources.length > 0;
+}
+
+$('text-add').addEventListener('click', async () => {
+  const text = $('text-body').value.trim();
+  if (!text) {
+    setStatus(sourceStatus, 'Paste some text first.', 'error');
+    return;
+  }
+  const name = $('text-name').value.trim() || 'Pasted text';
+  await addSource({ name, kind: 'text', text });
+  $('text-name').value = '';
+  $('text-body').value = '';
+  setStatus(sourceStatus, `Added "${name}".`, 'ok');
+  renderSources();
+});
+
 // --- Startup ---------------------------------------------------------------
 
 const settings = await getSettings();
 keyInput.value = settings.apiKey;
 modelSelect.value = settings.model;
 lengthSelect.value = settings.length;
+renderSources();
