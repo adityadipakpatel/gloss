@@ -62,7 +62,7 @@
     box.append(header, body);
     root.append(box);
 
-    card = { host, box, body, selection };
+    card = { host, box, body, selection, mode: 'auto', turns: [] };
     placeCard();
     document.documentElement.append(host);
     addDismissListeners(card);
@@ -70,12 +70,11 @@
     startAnswer();
   }
 
-  // Stage 1 placeholder: a hardcoded answer streamed word by word.
-  const FAKE_ANSWER =
-    '**Gloss is working.** This is a hardcoded placeholder, streamed word by word so the card can be tried before the real API is wired in.\n\n- *Selected:* ';
-
+  // Ask the background worker for an answer and stream it into a new answer element.
+  // card.turns holds the follow-up conversation after the first answer.
   function startAnswer() {
     const c = card;
+    disconnect(c);
     c.answerText = '';
     c.answerEl = el('div', 'answer');
     const loading = el('div', 'loading');
@@ -84,14 +83,65 @@
     loading.append(el('span'), el('span'), el('span'));
     c.answerEl.append(loading);
     c.body.append(c.answerEl);
+    c.body.scrollTop = c.body.scrollHeight;
 
-    const words = (FAKE_ANSWER + c.selection.text.slice(0, 80)).split(/(?<=\s)/);
-    const next = () => {
-      if (card !== c || !words.length) return;
-      appendAnswer(words.shift());
-      c.timer = setTimeout(next, 45);
-    };
-    c.timer = setTimeout(next, 600);
+    let port;
+    try {
+      port = chrome.runtime.connect({ name: 'gloss' });
+    } catch {
+      // The extension was reloaded or updated under this page.
+      showError({ message: 'Gloss was updated. Reload this page to use it again.' });
+      return;
+    }
+    c.port = port;
+    c.busy = true;
+    const current = () => card === c && c.port === port;
+    port.onMessage.addListener((msg) => {
+      if (!current()) return;
+      if (msg.type === 'delta') appendAnswer(msg.text);
+      else if (msg.type === 'done') finishAnswer();
+      else if (msg.type === 'error') showError(msg);
+    });
+    port.onDisconnect.addListener(() => {
+      if (current() && c.busy) showError({ message: 'Gloss was interrupted. Try again.' });
+    });
+    const { text, before, after, truncated } = c.selection;
+    port.postMessage({
+      type: 'ask',
+      selection: { text, before, after, truncated },
+      page: { title: document.title, url: location.href },
+      mode: c.mode,
+      turns: c.turns,
+    });
+  }
+
+  function disconnect(c) {
+    const port = c.port;
+    c.port = null;
+    c.busy = false;
+    try {
+      port?.disconnect();
+    } catch {
+      // Already gone.
+    }
+  }
+
+  function finishAnswer() {
+    const c = card;
+    disconnect(c);
+    if (!c.answerText.trim()) {
+      showError({ message: 'No answer came back. Try again.' });
+      return;
+    }
+    c.turns.push({ role: 'assistant', content: c.answerText });
+  }
+
+  // Replace the loading dots (or a partial answer) with an error message.
+  function showError({ message }) {
+    const c = card;
+    disconnect(c);
+    c.answerEl.replaceChildren(el('p', 'error', message));
+    c.body.scrollTop = c.body.scrollHeight;
   }
 
   // Add streamed text to the current answer and re-render it.
@@ -172,7 +222,7 @@
     document.removeEventListener('pointerdown', closing.onPointerDown, true);
     document.removeEventListener('keydown', closing.onKeyDown, true);
     window.removeEventListener('scroll', closing.onScroll, { capture: true });
-    clearTimeout(closing.timer);
+    disconnect(closing);
     closing.host.remove();
   }
 

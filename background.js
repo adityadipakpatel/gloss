@@ -1,5 +1,11 @@
 // Gloss background service worker.
-// Owns the context menu, the keyboard shortcut and (later) the API calls.
+// Owns the context menu, the keyboard shortcut and the API calls.
+import { ApiError, describeError, streamMessage } from './lib/api.js';
+import { buildFirstMessage, buildSystem } from './lib/prompt.js';
+import { getSettings } from './lib/store.js';
+
+const FIRST_ANSWER_TOKENS = 400;
+const FOLLOW_UP_TOKENS = 800;
 
 const MENU_ID = 'ask-gloss';
 // Injected on demand, in this order. Nothing runs on a page until Gloss is triggered there.
@@ -58,3 +64,41 @@ function flagUnsupported(tabId) {
     chrome.action.setTitle({ tabId, title: 'Gloss' }).catch(ignore);
   }, 8000);
 }
+
+// Each answer gets its own port from the content script: one 'ask' message in, then
+// 'delta' messages and a final 'done' or 'error' out. The open port keeps this worker
+// alive while streaming; closing the card disconnects it, which aborts the request.
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'gloss') return;
+  const controller = new AbortController();
+  const { signal } = controller;
+  port.onDisconnect.addListener(() => controller.abort());
+  const send = (message) => {
+    if (!signal.aborted) port.postMessage(message);
+  };
+
+  port.onMessage.addListener(async (msg) => {
+    if (msg.type !== 'ask') return;
+    try {
+      const { apiKey, model, length } = await getSettings();
+      if (!apiKey) throw new ApiError('no_key');
+      // msg.turns holds the follow-up conversation so far (assistant/user alternating).
+      const turns = msg.turns || [];
+      const body = {
+        model,
+        max_tokens: turns.length ? FOLLOW_UP_TOKENS : FIRST_ANSWER_TOKENS,
+        system: buildSystem({ mode: msg.mode, length }),
+        messages: [buildFirstMessage(msg), ...turns],
+      };
+      await streamMessage({
+        apiKey,
+        body,
+        signal,
+        onText: (text) => send({ type: 'delta', text }),
+      });
+      send({ type: 'done' });
+    } catch (err) {
+      if (!signal.aborted) send({ type: 'error', ...describeError(err) });
+    }
+  });
+});

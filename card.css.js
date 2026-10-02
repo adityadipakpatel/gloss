@@ -79,6 +79,8 @@ header {
   font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
+.error { color: var(--danger); }
+
 .loading { display: flex; gap: 4px; padding: 5px 0; }
 .loading span {
   width: 5px;
