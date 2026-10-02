@@ -2,7 +2,7 @@
 // Owns the context menu, the keyboard shortcut and the API calls.
 import { ApiError, describeError, streamMessage } from './lib/api.js';
 import { buildFirstMessage, buildSystem } from './lib/prompt.js';
-import { getSettings } from './lib/store.js';
+import { getActiveSources, getSettings } from './lib/store.js';
 
 const FIRST_ANSWER_TOKENS = 400;
 const FOLLOW_UP_TOKENS = 800;
@@ -90,7 +90,8 @@ chrome.runtime.onConnect.addListener((port) => {
       const body = {
         model,
         max_tokens: turns.length ? FOLLOW_UP_TOKENS : FIRST_ANSWER_TOKENS,
-        system: buildSystem({ mode: msg.mode, length }),
+        // Active sources go in their own cached system block (see buildSystem).
+        system: buildSystem({ sources: await getActiveSources(), mode: msg.mode, length }),
         messages: [buildFirstMessage(msg), ...turns],
       };
       await streamMessage({
