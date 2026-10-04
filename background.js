@@ -2,11 +2,13 @@
 // Owns the context menu, the keyboard shortcut and the API calls.
 import { ApiError, describeError, streamAnswer } from './lib/api.js';
 import { buildFirstMessage, buildSystem } from './lib/prompt.js';
-import { PROVIDERS, contextTokens } from './lib/providers.js';
+import { PROVIDERS, contextTokens, visionModel } from './lib/providers.js';
 import { getActiveSources, getSettings } from './lib/store.js';
 
 // Room left in the context window for instructions, the selection and the answer.
 const RESERVED_TOKENS = 5000;
+// Screenshots are JPEGs sent as base64 text; keep requests comfortably under provider limits.
+const MAX_IMAGE_CHARS = 3_000_000;
 
 const MENU_ID = 'ask-gloss';
 // Injected on demand, in this order. Nothing runs on a page until Gloss is triggered there.
@@ -91,7 +93,26 @@ async function runSearch({ query, engine }) {
 }
 
 // Content scripts can't open the options page or fetch other sites themselves.
-chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+// Screenshot of the visible part of the sender's tab. Allowed by activeTab, which the
+// context menu or shortcut grants for the tab it was used on.
+async function captureTab(tab) {
+  if (tab?.windowId == null) return {};
+  try {
+    for (const quality of [60, 30]) {
+      const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'jpeg', quality });
+      if (dataUrl.length <= MAX_IMAGE_CHARS) return { dataUrl };
+    }
+  } catch {
+    // Permission lapsed (the user moved to another tab) or the page can't be captured.
+  }
+  return {};
+}
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === 'gloss:capture') {
+    captureTab(sender.tab).then(sendResponse);
+    return true; // reply asynchronously
+  }
   if (msg?.type === 'gloss:open-options') chrome.runtime.openOptionsPage();
   if (msg?.type === 'gloss:search') {
     runSearch(msg).then(sendResponse);
@@ -153,8 +174,15 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onMessage.addListener(async (msg) => {
     if (msg.type !== 'ask') return;
     try {
-      const { provider, apiKey, model, length } = await getSettings();
+      const settings = await getSettings();
+      const { provider, apiKey, length } = settings;
       if (!apiKey) throw new ApiError('no_key');
+      // Only accept a screenshot that is a JPEG data URL of a sane size.
+      const image =
+        typeof msg.image === 'string' && msg.image.startsWith('data:image/jpeg;base64,') && msg.image.length <= MAX_IMAGE_CHARS
+          ? msg.image
+          : null;
+      const model = image ? visionModel(provider, settings.model) : settings.model;
       // msg.turns holds the follow-up conversation so far (assistant/user alternating).
       const turns = msg.turns || [];
       // Fail early with a clear message when the sources can't fit. This is only an
@@ -172,7 +200,8 @@ chrome.runtime.onConnect.addListener((port) => {
         maxTokens: turns.length ? limits.followUp : limits.first,
         // Active sources go in their own cached system block (see buildSystem).
         system: buildSystem({ sources, mode: msg.mode, length }),
-        messages: [buildFirstMessage(msg), ...turns],
+        messages: [buildFirstMessage({ ...msg, hasImage: Boolean(image) }), ...turns],
+        image,
         signal,
         onText: (text) => send({ type: 'delta', text }),
       });
