@@ -106,7 +106,35 @@
     document.documentElement.append(host);
     addDismissListeners(card);
 
-    startAnswer();
+    showChooser();
+  }
+
+  function button(label, onClick, className = 'action') {
+    const node = el('button', className, label);
+    node.type = 'button';
+    node.addEventListener('click', onClick);
+    return node;
+  }
+
+  // Opening the card costs nothing: the user picks how to get the answer.
+  function showChooser() {
+    const c = card;
+    const choice = el('div', 'choice');
+    choice.append(
+      el('p', 'choice-label', 'How do you want the answer?'),
+      el('div', 'choice-row')
+    );
+    choice.lastChild.append(
+      button('Search Google', startSearch),
+      button('Ask AI', startAnswer, 'action secondary')
+    );
+    c.chooser = choice;
+    c.body.append(choice);
+  }
+
+  function clearChooser(c) {
+    c.chooser?.remove();
+    c.chooser = null;
   }
 
   // Ask the background worker for an answer and stream it into a new answer element.
@@ -114,6 +142,8 @@
   function startAnswer() {
     const c = card;
     disconnect(c);
+    clearChooser(c);
+    c.searchId = (c.searchId || 0) + 1; // abandon any search still in flight
     if (c.selection.truncated && !c.turns.length) {
       c.body.append(
         el('p', 'note', `Long selection: only the first ${MAX_SELECTION_CHARS.toLocaleString()} characters were sent.`)
@@ -121,11 +151,7 @@
     }
     c.answerText = '';
     c.answerEl = el('div', 'answer');
-    const loading = el('div', 'loading');
-    loading.setAttribute('role', 'status');
-    loading.setAttribute('aria-label', 'Thinking');
-    loading.append(el('span'), el('span'), el('span'));
-    c.answerEl.append(loading);
+    c.answerEl.append(loadingDots());
     c.body.append(c.answerEl);
     c.body.scrollTop = c.body.scrollHeight;
 
@@ -157,6 +183,90 @@
       mode: c.mode,
       turns: c.turns,
     });
+  }
+
+  // --- Web search ----------------------------------------------------------
+
+  const SEARCH_ENGINES = ['google', 'duckduckgo']; // the second is the fallback
+  const MAX_QUERY_CHARS = 250;
+
+  function loadingDots() {
+    const loading = el('div', 'loading');
+    loading.setAttribute('role', 'status');
+    loading.setAttribute('aria-label', 'Searching');
+    loading.append(el('span'), el('span'), el('span'));
+    return loading;
+  }
+
+  // Search the web for the selection and show the top answer in the card.
+  async function startSearch() {
+    const c = card;
+    disconnect(c); // stop any AI answer in progress
+    clearChooser(c);
+    const id = (c.searchId = (c.searchId || 0) + 1);
+    const live = () => card === c && c.searchId === id;
+    const query = c.selection.text.replace(/\s+/g, ' ').trim().slice(0, MAX_QUERY_CHARS);
+
+    c.answerText = '';
+    c.answerEl = el('div', 'answer');
+    c.answerEl.append(loadingDots());
+    c.body.append(c.answerEl);
+    c.body.scrollTop = c.body.scrollHeight;
+
+    let found = null;
+    try {
+      for (const engine of SEARCH_ENGINES) {
+        const reply = await chrome.runtime.sendMessage({ type: 'gloss:search', query, engine });
+        if (!live()) return;
+        const parsed = reply?.html && globalThis.GlossSearch.parse(engine, reply.html);
+        if (parsed) {
+          found = { ...parsed, engine };
+          break;
+        }
+      }
+    } catch {
+      if (live()) showError({ message: 'Gloss was updated. Reload this page to use it again.' });
+      return;
+    }
+    if (live()) showSearchResult(c, query, found);
+  }
+
+  function showSearchResult(c, query, found) {
+    const view = el('div', 'search');
+    const engine = found?.engine || 'google';
+    const openUrl = globalThis.GlossSearch.searchUrl(engine, query);
+
+    if (!found) {
+      view.append(el('p', 'error', "Couldn't read an answer from the web search."));
+    } else {
+      if (found.answer) view.append(el('p', 'search-answer', found.answer));
+      const list = el('ul', 'search-results');
+      for (const { title, url, snippet } of found.results) {
+        const item = el('li');
+        const link = el('a', '', title || url);
+        link.href = url; // unwrap() only ever returns http(s) URLs
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        item.append(link);
+        if (snippet) item.append(el('span', 'snippet', snippet));
+        list.append(item);
+      }
+      view.append(list);
+      view.append(
+        el('p', 'note', engine === 'google' ? 'From Google search.' : "Google didn't return a readable page, so this is from DuckDuckGo.")
+      );
+    }
+
+    const row = el('div', 'choice-row');
+    const open = el('a', 'action secondary', engine === 'google' ? 'Open in Google' : 'Open search');
+    open.href = openUrl;
+    open.target = '_blank';
+    open.rel = 'noopener noreferrer';
+    row.append(open, button('Ask AI instead', startAnswer, 'action secondary'));
+    view.append(row);
+
+    c.answerEl.replaceChildren(view);
+    c.body.scrollTop = 0;
   }
 
   // Continue the conversation about the same selection. It lives only in card.turns

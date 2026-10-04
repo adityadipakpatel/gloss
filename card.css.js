@@ -128,10 +128,27 @@ header {
 }
 .footer input::placeholder { color: var(--muted); }
 
+.choice-label { margin: 0 0 8px; color: var(--muted); font-size: 12.5px; }
+.choice-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.choice .choice-row { margin-top: 0; }
+
+.search-answer { font-weight: 600; }
+.search-results { margin: 0 0 0.55em; padding: 0; list-style: none; }
+.search-results li { margin: 0 0 8px; }
+.search-results a { color: var(--accent); font-weight: 600; text-decoration: none; }
+.search-results a:hover { text-decoration: underline; }
+.snippet { display: block; color: var(--fg); font-size: 12.5px; }
+
+a.action { display: inline-block; box-sizing: border-box; text-decoration: none; }
+.action.secondary {
+  color: var(--fg);
+  background: var(--field);
+  border: 1px solid var(--border);
+}
+
 .error p { color: var(--danger); }
 .action {
-  margin-top: 2px;
-  padding: 4px 10px;
+  padding: 5px 11px;
   color: var(--bg);
   background: var(--accent);
   border: 0;
