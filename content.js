@@ -258,8 +258,12 @@
     const image = await captureScreenshot(c);
     if (!live()) return;
     const selected = c.selection.text.replace(/\s+/g, ' ').trim().slice(0, MAX_AI_MODE_QUESTION_CHARS);
+    // Google's answer is read back out of its page, so ask for a tiny JSON object that is
+    // easy to pick out; the <...> parts are placeholders, not the format of the values.
     const question =
-      'Answer briefly, in at most two sentences, with the answer first. ' +
+      'Reply with only a JSON object and nothing else, in this shape: ' +
+      '{"answer":"<only the answer, as short as possible, for example B) Italy>","reason":"<one short sentence, or empty>"} ' +
+      'No markdown, no other text, no follow-up questions. ' +
       (image ? 'The attached screenshot shows the page the question comes from. ' : '') +
       `Question: ${selected}`;
 
@@ -277,7 +281,12 @@
     const view = el('div', 'search');
     if (reply?.answer) {
       const answer = el('div', 'answer');
-      answer.append(globalThis.GlossMarkdown.render(reply.answer));
+      if (reply.reason) {
+        // Parsed from Google's JSON: the answer on its own line, then why.
+        answer.append(el('p', 'search-answer', reply.answer), el('p', '', reply.reason));
+      } else {
+        answer.append(globalThis.GlossMarkdown.render(reply.answer));
+      }
       view.append(
         answer,
         el('p', 'note', hadImage ? 'From Google AI Mode, using the screenshot.' : 'From Google AI Mode (no screenshot: the capture failed).')
