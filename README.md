@@ -51,6 +51,9 @@ and each key is sent only to its own provider's API.
     featured snippet when Google has one, otherwise the top three results) right in the
     card, with a link to open the full search. No API key needed, and it's usually faster
     than the AI.
+  - **Google AI Mode + screenshot** attaches the same screenshot and asks Google's AI Mode
+    (no API key needed, but it can take 15 to 30 seconds). It's opened in a short-lived
+    background tab, like Search Google.
   - **Ask AI + screenshot** sends a screenshot of the visible part of the page along
     with your selection, so the AI can also see diagrams, charts, images and answer
     options that aren't in the selected text. Follow-ups and mode changes on the same
@@ -99,15 +102,20 @@ per minute, so large sources often fail there.
 ## Known limitations
 
 - **Screenshots** capture only what is visible in the window right now, not the whole
-  scrolled page, and go to your AI provider only when you press **Ask AI + screenshot**.
-  They can't be used with Search Google: Google has no way to take an image from outside
-  its own site. The card hides itself for the instant of the capture, so it isn't in the
+  scrolled page, and go to a provider only when you press one of the screenshot buttons:
+  your AI provider for **Ask AI + screenshot**, or Google for **Google AI Mode +
+  screenshot**. The card hides itself for the instant of the capture, so it isn't in the
   picture, and your selection highlight is. Not every model can see images, so for that
   question Gloss switches to the provider's image-capable model: `qwen/qwen3.8-27b` on
   Groq, `deepseek-flash` on DeepSeek, `gemini-3.8-flash` on Gemini, Claude Haiku 4.5 on
   Anthropic (your own pick is used when it can see images). If the capture fails, you get
   a text-only answer and the card says so.
-
+- **Google AI Mode is the most fragile feature.** Google has no API for it, so Gloss
+  operates the page like a person would: it attaches the screenshot, types the question,
+  and reads the answer when it stops streaming. It needs AI Mode to be available in your
+  country and, usually, a signed-in Google account, and a Google layout change can break
+  it. When it can't read an answer, the card says why and offers **Open in Google AI
+  Mode**, **Search Google** and **Ask AI + screenshot** instead.
 - **Search Google is a best effort.** There is no free official Google answer API, so Gloss
   runs the search in a real browser tab (opened in the background in your own browser, so
   it uses your Google session and sees the normal page, then closed within a second or
@@ -148,6 +156,7 @@ per minute, so large sources often fail there.
 | `lib/api.js` | Streaming client for the Anthropic and OpenAI-compatible formats: SSE parsing and error mapping. |
 | `lib/prompt.js` | System prompt and message construction. |
 | `lib/store.js` | Everything stored in `chrome.storage.local`. |
+| `lib/aimode.js` | Operates Google AI Mode in a background tab: attaches the screenshot, asks, and reads the finished answer. |
 | `lib/search.js` | Reads a rendered search results tab (Google, or DuckDuckGo as a fallback) into a short answer and a few results. |
 | `lib/markdown.js` | Tiny renderer for bold, italics, code and lists that builds DOM nodes only (no `innerHTML`). |
 | `lib/pdf*.mjs` | Vendored pdf.js (see `lib/README.md`). |

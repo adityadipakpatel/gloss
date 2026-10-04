@@ -127,7 +127,8 @@
     choice.lastChild.append(
       button('Search Google', startSearch),
       button('Ask AI', startAnswer, 'action secondary'),
-      button('Ask AI + screenshot', startScreenshotAnswer, 'action secondary')
+      button('Ask AI + screenshot', startScreenshotAnswer, 'action secondary'),
+      button('Google AI Mode + screenshot', startAiMode, 'action secondary')
     );
     c.chooser = choice;
     c.body.append(choice);
@@ -223,6 +224,70 @@
       c.body.append(el('p', 'note', "Couldn't capture the page, so this answer uses the selected text only."));
     }
     startAnswer();
+  }
+
+  // --- Google AI Mode ------------------------------------------------------
+
+  const MAX_AI_MODE_QUESTION_CHARS = 800;
+
+  // Ask Google's AI Mode about the selection, with a screenshot of the page attached.
+  async function startAiMode() {
+    const c = card;
+    disconnect(c);
+    clearChooser(c);
+    const id = (c.searchId = (c.searchId || 0) + 1);
+    const live = () => card === c && c.searchId === id;
+
+    c.answerEl = el('div', 'answer');
+    c.answerEl.append(loadingDots(), el('p', 'note', 'Asking Google AI Mode. This takes about 15 to 30 seconds.'));
+    c.body.append(c.answerEl);
+
+    const image = await captureScreenshot(c);
+    if (!live()) return;
+    const selected = c.selection.text.replace(/\s+/g, ' ').trim().slice(0, MAX_AI_MODE_QUESTION_CHARS);
+    const question =
+      'Answer briefly, in at most two sentences, with the answer first. ' +
+      (image ? 'The attached screenshot shows the page the question comes from. ' : '') +
+      `Question: ${selected}`;
+
+    let reply;
+    try {
+      reply = await chrome.runtime.sendMessage({ type: 'gloss:aimode', query: question, image });
+    } catch {
+      if (live()) showError({ message: 'Gloss was updated. Reload this page to use it again.' });
+      return;
+    }
+    if (live()) showAiModeResult(c, selected, Boolean(image), reply);
+  }
+
+  function showAiModeResult(c, selected, hadImage, reply) {
+    const view = el('div', 'search');
+    if (reply?.answer) {
+      const answer = el('div', 'answer');
+      answer.append(globalThis.GlossMarkdown.render(reply.answer));
+      view.append(
+        answer,
+        el('p', 'note', hadImage ? 'From Google AI Mode, using the screenshot.' : 'From Google AI Mode (no screenshot: the capture failed).')
+      );
+    } else {
+      const reason = reply?.blocked
+        ? 'Google is asking you to confirm you are not a robot. Open Google AI Mode, confirm, then try again.'
+        : reply?.error === 'attach'
+          ? "Couldn't attach the screenshot in Google AI Mode. Google's page may have changed."
+          : "Couldn't read an answer from Google AI Mode. You may need to be signed in to Google, or it may not be available in your country.";
+      view.append(el('p', 'error', reason));
+    }
+
+    const row = el('div', 'choice-row');
+    const open = el('a', 'action secondary', 'Open in Google AI Mode');
+    open.href = `https://www.google.com/search?udm=50&q=${encodeURIComponent(selected)}`;
+    open.target = '_blank';
+    open.rel = 'noopener noreferrer';
+    row.append(open, button('Search Google', startSearch, 'action secondary'), button('Ask AI + screenshot', startScreenshotAnswer, 'action secondary'));
+    view.append(row);
+
+    c.answerEl.replaceChildren(view);
+    c.body.scrollTop = 0;
   }
 
   // --- Web search ----------------------------------------------------------
