@@ -289,6 +289,7 @@
           ? "Couldn't attach the screenshot in Google AI Mode. Google's page may have changed."
           : "Couldn't read an answer from Google AI Mode. You may need to be signed in to Google, or it may not be available in your country.";
       view.append(el('p', 'error', reason));
+      if (reply?.sample) view.append(el('p', 'note', `Gloss saw: ${reply.sample}`));
     }
 
     const row = el('div', 'choice-row');
