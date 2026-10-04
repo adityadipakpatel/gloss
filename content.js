@@ -126,7 +126,8 @@
     );
     choice.lastChild.append(
       button('Search Google', startSearch),
-      button('Ask AI', startAnswer, 'action secondary')
+      button('Ask AI', startAnswer, 'action secondary'),
+      button('Ask AI + screenshot', startScreenshotAnswer, 'action secondary')
     );
     c.chooser = choice;
     c.body.append(choice);
@@ -182,7 +183,46 @@
       page: { title: document.title, url: location.href },
       mode: c.mode,
       turns: c.turns,
+      image: c.image || null,
     });
+  }
+
+  // --- Screenshot ----------------------------------------------------------
+
+  // Screenshot the visible part of the page (a data: URL) for the AI to look at, or null
+  // if it can't be captured. The card is taken out of the page for the shot so it isn't
+  // in it; the page's own selection highlight stays visible.
+  async function captureScreenshot(c) {
+    c.host.remove();
+    try {
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const reply = await chrome.runtime.sendMessage({ type: 'gloss:capture' });
+      return reply?.dataUrl || null;
+    } catch {
+      return null;
+    } finally {
+      if (card === c) document.documentElement.append(c.host);
+    }
+  }
+
+  async function startScreenshotAnswer() {
+    const c = card;
+    disconnect(c);
+    clearChooser(c);
+    const id = (c.searchId = (c.searchId || 0) + 1);
+    c.answerEl = el('div', 'answer');
+    c.answerEl.append(loadingDots());
+    c.body.append(c.answerEl);
+
+    const image = await captureScreenshot(c);
+    if (card !== c || c.searchId !== id) return;
+    c.image = image; // kept for follow-ups and mode changes on this card
+    c.answerEl.remove();
+    if (!image) {
+      c.body.append(el('p', 'note', "Couldn't capture the page, so this answer uses the selected text only."));
+    }
+    startAnswer();
   }
 
   // --- Web search ----------------------------------------------------------
@@ -193,7 +233,7 @@
   function loadingDots() {
     const loading = el('div', 'loading');
     loading.setAttribute('role', 'status');
-    loading.setAttribute('aria-label', 'Searching');
+    loading.setAttribute('aria-label', 'Working');
     loading.append(el('span'), el('span'), el('span'));
     return loading;
   }
