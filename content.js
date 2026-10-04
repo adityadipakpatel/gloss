@@ -16,6 +16,7 @@
   const GAP = 8; // between selection and card
   const MARGIN = 8; // between card and viewport edge
   const SCROLL_CLOSE_PX = 80; // scroll distance that dismisses the card
+  const RESTORE_MS = 10_000; // how long a dismissed card can be brought back
   // Keep in sync with MODES in lib/prompt.js.
   const MODES = [
     ['auto', 'Auto'],
@@ -30,6 +31,13 @@
     if (msg?.type !== 'gloss:ask') return;
     sendResponse({ ok: true });
     const selection = captureSelection(msg.selectionText);
+    // Right after an accidental dismissal, asking again about the same text (or pressing
+    // the shortcut with nothing selected, as the click may have cleared the selection)
+    // brings the card back as it was.
+    if (card?.hidden && (!selection || selection.text === card.selection.text)) {
+      restoreCard();
+      return;
+    }
     if (selection) openCard(selection);
   }
 
@@ -100,6 +108,11 @@
 
     box.append(header, body, footer);
     root.append(box);
+
+    // Keep typing in the card from triggering the page's keyboard shortcuts.
+    for (const type of ['keydown', 'keyup', 'keypress']) {
+      box.addEventListener(type, (event) => event.stopPropagation());
+    }
 
     card = { host, box, body, selection, mode: 'auto', turns: [] };
     placeCard();
@@ -492,10 +505,10 @@
 
     // Events from inside the closed shadow root are retargeted to the host.
     c.onPointerDown = (event) => {
-      if (event.target !== c.host) closeCard();
+      if (event.target !== c.host) hideCard();
     };
     c.onKeyDown = (event) => {
-      if (event.key === 'Escape') closeCard();
+      if (event.key === 'Escape') hideCard();
     };
     c.onScroll = (event) => {
       if (event.target === c.host) return; // scrolling inside the card
@@ -505,25 +518,46 @@
         rect.width || rect.height
           ? Math.abs(rect.top - startTop)
           : Math.abs(window.scrollY - startScrollY);
-      if (moved > SCROLL_CLOSE_PX) closeCard();
+      if (moved > SCROLL_CLOSE_PX) hideCard();
     };
     document.addEventListener('pointerdown', c.onPointerDown, true);
     document.addEventListener('keydown', c.onKeyDown, true);
     window.addEventListener('scroll', c.onScroll, { capture: true, passive: true });
+  }
 
-    // Keep typing in the card from triggering the page's keyboard shortcuts.
-    for (const type of ['keydown', 'keyup', 'keypress']) {
-      c.box.addEventListener(type, (event) => event.stopPropagation());
-    }
+  function removeDismissListeners(c) {
+    document.removeEventListener('pointerdown', c.onPointerDown, true);
+    document.removeEventListener('keydown', c.onKeyDown, true);
+    window.removeEventListener('scroll', c.onScroll, { capture: true });
+  }
+
+  // Dismissing by accident (a stray click, Esc, a bit of scrolling) only hides the card.
+  // Its state, including an answer still streaming in, is kept for RESTORE_MS; after
+  // that it is really closed. The x button always closes right away.
+  function hideCard() {
+    const c = card;
+    if (!c || c.hidden) return;
+    c.hidden = true;
+    removeDismissListeners(c);
+    c.host.remove();
+    c.restoreTimer = setTimeout(closeCard, RESTORE_MS);
+  }
+
+  function restoreCard() {
+    const c = card;
+    clearTimeout(c.restoreTimer);
+    c.hidden = false;
+    placeCard();
+    document.documentElement.append(c.host);
+    addDismissListeners(c); // also resets where "scrolled away" is measured from
   }
 
   function closeCard() {
     if (!card) return;
     const closing = card;
     card = null;
-    document.removeEventListener('pointerdown', closing.onPointerDown, true);
-    document.removeEventListener('keydown', closing.onKeyDown, true);
-    window.removeEventListener('scroll', closing.onScroll, { capture: true });
+    clearTimeout(closing.restoreTimer);
+    removeDismissListeners(closing);
     disconnect(closing);
     closing.host.remove();
   }

@@ -68,6 +68,10 @@ and each key is sent only to its own provider's API.
 - Type in **Ask a follow-up…** to continue the conversation about the same selection.
   The conversation is thrown away when the card closes.
 - Close the card by clicking outside it, pressing Esc, scrolling away, or with the × button.
+  The × closes it for good. The other ways only hide it for 10 seconds: ask about the same
+  text again (right-click → Ask Gloss, or the shortcut) and it comes back exactly as it
+  was, including an answer that kept arriving while it was hidden. The shortcut works
+  even if the click cleared your selection.
 
 ### Keyboard shortcut
 
