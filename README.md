@@ -46,12 +46,17 @@ and each key is sent only to its own provider's API.
 
 - Works on any normal website. Select text, right-click, **Ask Gloss**. Or select text
   and press **Alt+G** (**Option+G** on a Mac).
-- The card streams a short answer:
+- The card opens with two buttons and does nothing until you pick one:
+  - **Search Google** looks the selection up on the web and shows the top answer (a
+    featured snippet when Google has one, otherwise the top three results) right in the
+    card, with a link to open the full search. No API key needed, and it's usually faster
+    than the AI.
+  - **Ask AI** streams an answer from your chosen provider:
   - a word or short phrase gets a definition, then what it means in this context;
   - a longer passage gets a simple two or three sentence explanation;
   - a question (multiple choice, fill in the blank, true/false, or any short question)
     gets the answer in bold, then a very short reason.
-- The dropdown in the card header (Auto / Define / Explain simply / Answer a question)
+- The dropdown in the card header (AI only) (Auto / Define / Explain simply / Answer a question)
   overrides the automatic choice and asks again.
 - Type in **Ask a follow-up…** to continue the conversation about the same selection.
   The conversation is thrown away when the card closes.
@@ -89,6 +94,12 @@ per minute, so large sources often fail there.
 
 ## Known limitations
 
+- **Search Google is a best effort.** Gloss reads Google's results page, not an official
+  API, so a layout change or a Google consent or "unusual traffic" page can leave it
+  with nothing to show. It then falls back to DuckDuckGo results, and failing that
+  shows an error with an **Open in Google** link. Searches are sent without cookies.
+  The text you select is sent to Google (or DuckDuckGo) as the search query.
+
 - **Pages where extensions can't run**: `chrome://` pages, the Chrome Web Store and
   Chrome's built-in PDF viewer. Gloss shows a red **!** on its toolbar icon there (hover
   for the reason) instead of a card.
@@ -112,7 +123,7 @@ per minute, so large sources often fail there.
 
 | File | Role |
 | --- | --- |
-| `manifest.json` | Manifest V3. Permissions: `contextMenus`, `storage`, `unlimitedStorage`, `activeTab`, `scripting`; host access only to the four provider APIs. |
+| `manifest.json` | Manifest V3. Permissions: `contextMenus`, `storage`, `unlimitedStorage`, `activeTab`, `scripting`; host access only to the four AI provider APIs plus Google and DuckDuckGo search. |
 | `background.js` | Service worker: context menu, shortcut, injects the content script on demand, makes the streaming API call. |
 | `content.js` | Captures the selection and about 300 characters of context each side, renders the card in a closed Shadow DOM, handles follow-ups and dismissal. |
 | `card.css.js` | The card's styles (light and dark). |
@@ -121,6 +132,7 @@ per minute, so large sources often fail there.
 | `lib/api.js` | Streaming client for the Anthropic and OpenAI-compatible formats: SSE parsing and error mapping. |
 | `lib/prompt.js` | System prompt and message construction. |
 | `lib/store.js` | Everything stored in `chrome.storage.local`. |
+| `lib/search.js` | Reads a search results page (Google, or DuckDuckGo as a fallback) into a short answer and a few results. |
 | `lib/markdown.js` | Tiny renderer for bold, italics, code and lists that builds DOM nodes only (no `innerHTML`). |
 | `lib/pdf*.mjs` | Vendored pdf.js (see `lib/README.md`). |
 
