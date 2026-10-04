@@ -1,4 +1,4 @@
-// Styles for the popup card, as a string: the card lives in a closed Shadow DOM, so
+// Styles for the popup card (always light, on white), as a string: the card lives in a closed Shadow DOM, so
 // the content script adopts this as a constructed stylesheet (no <style> tag, which a
 // strict page CSP could block).
 globalThis.GLOSS_CARD_CSS = `
@@ -13,7 +13,7 @@ globalThis.GLOSS_CARD_CSS = `
   --accent: #9a6700;
   --danger: #b3261e;
 
-  color-scheme: light dark; /* native select and input follow the theme too */
+  color-scheme: light; /* native select and input stay light, whatever the system theme */
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -28,19 +28,6 @@ globalThis.GLOSS_CARD_CSS = `
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
   font: 13.5px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   text-align: left;
-}
-
-@media (prefers-color-scheme: dark) {
-  .card {
-    --bg: #22252b;
-    --fg: #e6e8eb;
-    --muted: #9aa4b2;
-    --border: #3a3f47;
-    --field: #2c3038;
-    --accent: #e3b341;
-    --danger: #ff8a80;
-    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
-  }
 }
 
 header {

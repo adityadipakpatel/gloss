@@ -46,27 +46,24 @@ and each key is sent only to its own provider's API.
 
 - Works on any normal website. Select text, right-click, **Ask Gloss**. Or select text
   and press **Alt+G** (**Option+G** on a Mac).
-- The card opens with two buttons and does nothing until you pick one:
+- The card opens straight away and asks **Google AI Mode** about your selection, with a
+  screenshot of the visible page attached so it can see diagrams, images and answer options
+  that aren't in the selected text. No API key is needed, and it takes about 15 to 30
+  seconds. It runs in a short-lived background tab, and the card shows just the answer
+  and a one-line reason. Under the answer there are buttons for the alternatives:
   - **Search Google** looks the selection up on the web and shows the top answer (a
-    featured snippet when Google has one, otherwise the top three results) right in the
-    card, with a link to open the full search. No API key needed, and it's usually faster
-    than the AI.
-  - **Google AI Mode + screenshot** attaches the same screenshot and asks Google's AI Mode
-    (no API key needed, but it can take 15 to 30 seconds). It's opened in a short-lived
-    background tab, like Search Google.
-  - **Ask AI + screenshot** sends a screenshot of the visible part of the page along
-    with your selection, so the AI can also see diagrams, charts, images and answer
-    options that aren't in the selected text. Follow-ups and mode changes on the same
-    card reuse the screenshot.
-  - **Ask AI** streams an answer from your chosen provider:
-  - a word or short phrase gets a definition, then what it means in this context;
-  - a longer passage gets a simple two or three sentence explanation;
-  - a question (multiple choice, fill in the blank, true/false, or any short question)
-    gets the answer in bold, then a very short reason.
-- The dropdown in the card header (AI only) (Auto / Define / Explain simply / Answer a question)
-  overrides the automatic choice and asks again.
-- Type in **Ask a follow-up…** to continue the conversation about the same selection.
-  The conversation is thrown away when the card closes.
+    featured snippet when Google has one, otherwise the top three results), with a link to
+    open the full search.
+  - **Ask AI + screenshot** sends the screenshot and selection to your chosen AI provider
+    (Groq, Gemini, DeepSeek or Anthropic; needs that provider's API key) and streams the
+    answer. It's usually faster than AI Mode.
+  - **Open in Google AI Mode** opens the question in a normal tab.
+- The follow-up box and the mode dropdown in the card header (Auto / Define / Explain
+  simply / Answer a question) use your chosen AI provider, so they need its API key. The
+  AI answers a word or short phrase with a definition, a longer passage with a short
+  explanation, and a question (multiple choice, fill in the blank, true/false) with the
+  answer in bold and a very short reason.
+- The conversation in the card is thrown away when it closes.
 - Close the card by clicking outside it, pressing Esc, scrolling away, or with the × button.
   The × closes it for good. The other ways only hide it for 10 seconds: ask about the same
   text again (right-click → Ask Gloss, or the shortcut) and it comes back exactly as it
@@ -154,7 +151,7 @@ per minute, so large sources often fail there.
 | `manifest.json` | Manifest V3. Permissions: `contextMenus`, `storage`, `unlimitedStorage`, `activeTab`, `scripting`; host access only to the four AI provider APIs plus Google and DuckDuckGo search. |
 | `background.js` | Service worker: context menu, shortcut, injects the content script on demand, makes the streaming API call. |
 | `content.js` | Captures the selection and about 300 characters of context each side, renders the card in a closed Shadow DOM, handles follow-ups and dismissal. |
-| `card.css.js` | The card's styles (light and dark). |
+| `card.css.js` | The card's styles (white, whatever the system theme). |
 | `options.html` / `options.js` / `options.css` | Settings and the sources manager. |
 | `lib/providers.js` | Provider list: endpoints, suggested models, per-provider request settings. |
 | `lib/api.js` | Streaming client for the Anthropic and OpenAI-compatible formats: SSE parsing and error mapping. |

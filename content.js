@@ -116,10 +116,11 @@
 
     card = { host, box, body, selection, mode: 'auto', turns: [] };
     placeCard();
-    document.documentElement.append(host);
     addDismissListeners(card);
 
-    showChooser();
+    // Gloss always starts with Google AI Mode. The card is put on the page once the
+    // screenshot has been taken, so it never appears and vanishes again.
+    startAiMode();
   }
 
   function button(label, onClick, className = 'action') {
@@ -129,35 +130,11 @@
     return node;
   }
 
-  // Opening the card costs nothing: the user picks how to get the answer.
-  function showChooser() {
-    const c = card;
-    const choice = el('div', 'choice');
-    choice.append(
-      el('p', 'choice-label', 'How do you want the answer?'),
-      el('div', 'choice-row')
-    );
-    choice.lastChild.append(
-      button('Search Google', startSearch),
-      button('Ask AI', startAnswer, 'action secondary'),
-      button('Ask AI + screenshot', startScreenshotAnswer, 'action secondary'),
-      button('Google AI Mode + screenshot', startAiMode, 'action secondary')
-    );
-    c.chooser = choice;
-    c.body.append(choice);
-  }
-
-  function clearChooser(c) {
-    c.chooser?.remove();
-    c.chooser = null;
-  }
-
   // Ask the background worker for an answer and stream it into a new answer element.
   // card.turns holds the follow-up conversation after the first answer.
   function startAnswer() {
     const c = card;
     disconnect(c);
-    clearChooser(c);
     c.searchId = (c.searchId || 0) + 1; // abandon any search still in flight
     if (c.selection.truncated && !c.turns.length) {
       c.body.append(
@@ -216,14 +193,13 @@
     } catch {
       return null;
     } finally {
-      if (card === c) document.documentElement.append(c.host);
+      if (card === c && !c.hidden) document.documentElement.append(c.host);
     }
   }
 
   async function startScreenshotAnswer() {
     const c = card;
     disconnect(c);
-    clearChooser(c);
     const id = (c.searchId = (c.searchId || 0) + 1);
     c.answerEl = el('div', 'answer');
     c.answerEl.append(loadingDots());
@@ -247,7 +223,6 @@
   async function startAiMode() {
     const c = card;
     disconnect(c);
-    clearChooser(c);
     const id = (c.searchId = (c.searchId || 0) + 1);
     const live = () => card === c && c.searchId === id;
 
@@ -330,7 +305,6 @@
   async function startSearch() {
     const c = card;
     disconnect(c); // stop any AI answer in progress
-    clearChooser(c);
     const id = (c.searchId = (c.searchId || 0) + 1);
     const live = () => card === c && c.searchId === id;
     const query = c.selection.text.replace(/\s+/g, ' ').trim().slice(0, MAX_QUERY_CHARS);
