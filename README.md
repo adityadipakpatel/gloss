@@ -51,6 +51,10 @@ and each key is sent only to its own provider's API.
     featured snippet when Google has one, otherwise the top three results) right in the
     card, with a link to open the full search. No API key needed, and it's usually faster
     than the AI.
+  - **Ask AI + screenshot** sends a screenshot of the visible part of the page along
+    with your selection, so the AI can also see diagrams, charts, images and answer
+    options that aren't in the selected text. Follow-ups and mode changes on the same
+    card reuse the screenshot.
   - **Ask AI** streams an answer from your chosen provider:
   - a word or short phrase gets a definition, then what it means in this context;
   - a longer passage gets a simple two or three sentence explanation;
@@ -93,6 +97,16 @@ minimum size (about 4,000 tokens of sources on Haiku 4.5). Groq's free tier limi
 per minute, so large sources often fail there.
 
 ## Known limitations
+
+- **Screenshots** capture only what is visible in the window right now, not the whole
+  scrolled page, and go to your AI provider only when you press **Ask AI + screenshot**.
+  They can't be used with Search Google: Google has no way to take an image from outside
+  its own site. The card hides itself for the instant of the capture, so it isn't in the
+  picture, and your selection highlight is. Not every model can see images, so for that
+  question Gloss switches to the provider's image-capable model: `qwen/qwen3.8-27b` on
+  Groq, `deepseek-flash` on DeepSeek, `gemini-3.8-flash` on Gemini, Claude Haiku 4.5 on
+  Anthropic (your own pick is used when it can see images). If the capture fails, you get
+  a text-only answer and the card says so.
 
 - **Search Google is a best effort.** There is no free official Google answer API, so Gloss
   runs the search in a real browser tab (opened in the background in your own browser, so

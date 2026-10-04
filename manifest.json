@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Gloss",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Select text, right-click, Ask Gloss: a short AI explanation in a small card next to your selection.",
   "minimum_chrome_version": "120",
   "permissions": ["contextMenus", "storage", "unlimitedStorage", "activeTab", "scripting"],
