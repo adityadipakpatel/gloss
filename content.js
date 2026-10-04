@@ -214,30 +214,39 @@
     c.body.scrollTop = c.body.scrollHeight;
 
     let found = null;
+    let blocked = false;
     try {
       for (const engine of SEARCH_ENGINES) {
         const reply = await chrome.runtime.sendMessage({ type: 'gloss:search', query, engine });
         if (!live()) return;
-        const parsed = reply?.html && globalThis.GlossSearch.parse(engine, reply.html);
-        if (parsed) {
-          found = { ...parsed, engine };
+        if (reply?.result) {
+          found = { ...reply.result, engine };
           break;
         }
+        blocked = blocked || Boolean(reply?.blocked);
       }
     } catch {
       if (live()) showError({ message: 'Gloss was updated. Reload this page to use it again.' });
       return;
     }
-    if (live()) showSearchResult(c, query, found);
+    if (live()) showSearchResult(c, query, found, blocked);
   }
 
-  function showSearchResult(c, query, found) {
+  function showSearchResult(c, query, found, blocked) {
     const view = el('div', 'search');
     const engine = found?.engine || 'google';
     const openUrl = globalThis.GlossSearch.searchUrl(engine, query);
 
     if (!found) {
-      view.append(el('p', 'error', "Couldn't read an answer from the web search."));
+      view.append(
+        el(
+          'p',
+          'error',
+          blocked
+            ? 'Google is asking you to confirm you are not a robot. Open the search, confirm, then try again.'
+            : "Couldn't read an answer from the web search."
+        )
+      );
     } else {
       if (found.answer) view.append(el('p', 'search-answer', found.answer));
       const list = el('ul', 'search-results');
@@ -253,7 +262,7 @@
       }
       view.append(list);
       view.append(
-        el('p', 'note', engine === 'google' ? 'From Google search.' : "Google didn't return a readable page, so this is from DuckDuckGo.")
+        el('p', 'note', engine === 'google' ? 'From Google search.' : "Couldn't read Google's page, so this is from DuckDuckGo.")
       );
     }
 

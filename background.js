@@ -30,23 +30,63 @@ chrome.commands.onCommand.addListener((command, tab) => {
 // The toolbar icon has no popup; clicking it opens the settings page.
 chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
 
-// Where web searches go. Sent without cookies, so they aren't tied to a Google account.
+// Searching happens in a real browser tab, so it has the user's own session and a fully
+// rendered page and meets none of the restrictions a plain request does. The tab is
+// opened in the background, read, and closed straight away.
 const SEARCH_URLS = {
   google: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}&hl=en`,
   duckduckgo: (q) => `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`,
 };
-const MAX_SEARCH_HTML = 800_000;
+const SEARCH_LOAD_TIMEOUT_MS = 12_000;
 
-// Fetches a results page and hands the raw HTML to the content script to read.
-async function fetchSearch({ query, engine }) {
+function waitForTabLoad(tabId) {
+  return new Promise((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      resolve();
+    };
+    const onUpdated = (id, info) => {
+      if (id === tabId && info.status === 'complete') done();
+    };
+    const timer = setTimeout(done, SEARCH_LOAD_TIMEOUT_MS);
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    // The page may already have finished before the listener was attached.
+    chrome.tabs.get(tabId).then((tab) => tab.status === 'complete' && done(), done);
+  });
+}
+
+// Runs inside the search tab. Results can appear a moment after the page loads.
+async function readSearchPage(engine) {
+  if (location.pathname.startsWith('/sorry')) return { blocked: true };
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const result = globalThis.GlossSearch.parseDocument(engine, document);
+    if (result) return { result };
+    await new Promise((resolve) => setTimeout(resolve, 400));
+  }
+  return { result: null };
+}
+
+// Returns { result } ({ answer, results } or null), { blocked: true }, or { error }.
+async function runSearch({ query, engine }) {
   const makeUrl = SEARCH_URLS[engine];
   if (!makeUrl || typeof query !== 'string' || !query.trim()) return { error: 'bad request' };
+  let tabId;
   try {
-    const response = await fetch(makeUrl(query.slice(0, 300)), { credentials: 'omit' });
-    if (!response.ok) return { error: `HTTP ${response.status}` };
-    return { html: (await response.text()).slice(0, MAX_SEARCH_HTML) };
-  } catch {
-    return { error: 'network' };
+    const tab = await chrome.tabs.create({ url: makeUrl(query.slice(0, 300)), active: false });
+    tabId = tab.id;
+    await waitForTabLoad(tabId);
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['lib/search.js'] });
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: readSearchPage,
+      args: [engine],
+    });
+    return injection?.result || { result: null };
+  } catch (err) {
+    return { error: String(err?.message || err) };
+  } finally {
+    if (tabId != null) chrome.tabs.remove(tabId).catch(() => {}); // the user may have closed it
   }
 }
 
@@ -54,7 +94,7 @@ async function fetchSearch({ query, engine }) {
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'gloss:open-options') chrome.runtime.openOptionsPage();
   if (msg?.type === 'gloss:search') {
-    fetchSearch(msg).then(sendResponse);
+    runSearch(msg).then(sendResponse);
     return true; // reply asynchronously
   }
 });

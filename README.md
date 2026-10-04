@@ -94,12 +94,14 @@ per minute, so large sources often fail there.
 
 ## Known limitations
 
-- **Search Google is a best effort.** Gloss reads Google's results page, not an official
-  API, so a layout change or a Google consent or "unusual traffic" page can leave it
-  with nothing to show. It then falls back to DuckDuckGo results, and failing that
-  shows an error with an **Open in Google** link. Searches are sent without cookies.
-  The text you select is sent to Google (or DuckDuckGo) as the search query.
-
+- **Search Google is a best effort.** There is no free official Google answer API, so Gloss
+  runs the search in a real browser tab (opened in the background in your own browser, so
+  it uses your Google session and sees the normal page, then closed within a second or
+  two; you may see a tab flicker in the tab bar) and reads the answer from it. A Google
+  layout change can leave it with nothing to show, and a "confirm you're not a robot" page
+  needs you to confirm once. It then falls back to DuckDuckGo results, and failing that
+  shows an error with an **Open in Google** link. The text you select is sent to Google
+  (or DuckDuckGo) as the search query, exactly as if you had searched it yourself.
 - **Pages where extensions can't run**: `chrome://` pages, the Chrome Web Store and
   Chrome's built-in PDF viewer. Gloss shows a red **!** on its toolbar icon there (hover
   for the reason) instead of a card.
@@ -132,7 +134,7 @@ per minute, so large sources often fail there.
 | `lib/api.js` | Streaming client for the Anthropic and OpenAI-compatible formats: SSE parsing and error mapping. |
 | `lib/prompt.js` | System prompt and message construction. |
 | `lib/store.js` | Everything stored in `chrome.storage.local`. |
-| `lib/search.js` | Reads a search results page (Google, or DuckDuckGo as a fallback) into a short answer and a few results. |
+| `lib/search.js` | Reads a rendered search results tab (Google, or DuckDuckGo as a fallback) into a short answer and a few results. |
 | `lib/markdown.js` | Tiny renderer for bold, italics, code and lists that builds DOM nodes only (no `innerHTML`). |
 | `lib/pdf*.mjs` | Vendored pdf.js (see `lib/README.md`). |
 
