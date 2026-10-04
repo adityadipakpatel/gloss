@@ -10,7 +10,7 @@ const RESERVED_TOKENS = 5000;
 
 const MENU_ID = 'ask-gloss';
 // Injected on demand, in this order. Nothing runs on a page until Gloss is triggered there.
-const CONTENT_FILES = ['lib/markdown.js', 'card.css.js', 'content.js'];
+const CONTENT_FILES = ['lib/markdown.js', 'lib/search.js', 'card.css.js', 'content.js'];
 
 chrome.runtime.onInstalled.addListener(() => {
   // removeAll first: reloading the unpacked extension fires onInstalled again.
@@ -30,9 +30,33 @@ chrome.commands.onCommand.addListener((command, tab) => {
 // The toolbar icon has no popup; clicking it opens the settings page.
 chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
 
-// Content scripts can't open the options page themselves (the card's "Open settings").
-chrome.runtime.onMessage.addListener((msg) => {
+// Where web searches go. Sent without cookies, so they aren't tied to a Google account.
+const SEARCH_URLS = {
+  google: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}&hl=en`,
+  duckduckgo: (q) => `https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`,
+};
+const MAX_SEARCH_HTML = 800_000;
+
+// Fetches a results page and hands the raw HTML to the content script to read.
+async function fetchSearch({ query, engine }) {
+  const makeUrl = SEARCH_URLS[engine];
+  if (!makeUrl || typeof query !== 'string' || !query.trim()) return { error: 'bad request' };
+  try {
+    const response = await fetch(makeUrl(query.slice(0, 300)), { credentials: 'omit' });
+    if (!response.ok) return { error: `HTTP ${response.status}` };
+    return { html: (await response.text()).slice(0, MAX_SEARCH_HTML) };
+  } catch {
+    return { error: 'network' };
+  }
+}
+
+// Content scripts can't open the options page or fetch other sites themselves.
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (msg?.type === 'gloss:open-options') chrome.runtime.openOptionsPage();
+  if (msg?.type === 'gloss:search') {
+    fetchSearch(msg).then(sendResponse);
+    return true; // reply asynchronously
+  }
 });
 
 // Tell the content script in the given frame to open a card, injecting it first if needed.
