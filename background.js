@@ -93,6 +93,38 @@ async function runSearch({ query, engine }) {
 }
 
 // Content scripts can't open the options page or fetch other sites themselves.
+// Google AI Mode, which can take a screenshot along with the question. Like search, it
+// runs in a background tab that is closed afterwards. Returns { answer }, { blocked: true }
+// or { error }. The worker is kept awake meanwhile: this takes up to a minute.
+async function runAiMode({ query, image }) {
+  if (typeof query !== 'string' || !query.trim()) return { error: 'bad request' };
+  const useImage =
+    typeof image === 'string' && image.startsWith('data:image/jpeg;base64,') && image.length <= MAX_IMAGE_CHARS;
+  const base = 'https://www.google.com/search?udm=50&hl=en';
+  // With a screenshot the question is typed in after the image is attached; without one,
+  // putting it in the URL is simpler and sturdier.
+  const url = useImage ? base : `${base}&q=${encodeURIComponent(query.slice(0, 1000))}`;
+  const keepAlive = setInterval(() => chrome.runtime.getPlatformInfo(), 20_000);
+  let tabId;
+  try {
+    const tab = await chrome.tabs.create({ url, active: false });
+    tabId = tab.id;
+    await waitForTabLoad(tabId);
+    await chrome.scripting.executeScript({ target: { tabId }, files: ['lib/aimode.js'] });
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: (q, img, preloaded) => globalThis.GlossAiMode.run(q, img, preloaded),
+      args: [query.slice(0, 1000), useImage ? image : null, !useImage],
+    });
+    return injection?.result || { error: 'empty' };
+  } catch (err) {
+    return { error: String(err?.message || err) };
+  } finally {
+    clearInterval(keepAlive);
+    if (tabId != null) chrome.tabs.remove(tabId).catch(() => {});
+  }
+}
+
 // Screenshot of the visible part of the sender's tab. Allowed by activeTab, which the
 // context menu or shortcut grants for the tab it was used on.
 async function captureTab(tab) {
@@ -109,6 +141,10 @@ async function captureTab(tab) {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg?.type === 'gloss:aimode') {
+    runAiMode(msg).then(sendResponse);
+    return true; // reply asynchronously
+  }
   if (msg?.type === 'gloss:capture') {
     captureTab(sender.tab).then(sendResponse);
     return true; // reply asynchronously
