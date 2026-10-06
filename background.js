@@ -2,6 +2,7 @@
 // Owns the context menu, the keyboard shortcut and the API calls.
 import { ApiError, describeError, streamAnswer } from './lib/api.js';
 import { buildFirstMessage, buildSystem } from './lib/prompt.js';
+import { pickExcerpts } from './lib/excerpts.js';
 import { PROVIDERS, contextTokens, visionModel } from './lib/providers.js';
 import { getActiveSources, getSettings } from './lib/store.js';
 
@@ -9,6 +10,8 @@ import { getActiveSources, getSettings } from './lib/store.js';
 const RESERVED_TOKENS = 5000;
 // Screenshots are JPEGs sent as base64 text; keep requests comfortably under provider limits.
 const MAX_IMAGE_CHARS = 3_000_000;
+// The whole question typed into Google AI Mode: instructions, source excerpts, selection.
+const MAX_AI_MODE_CHARS = 4000;
 
 const MENU_ID = 'ask-gloss';
 // Injected on demand, in this order. Nothing runs on a page until Gloss is triggered there.
@@ -96,14 +99,26 @@ async function runSearch({ query, engine }) {
 // Google AI Mode, which can take a screenshot along with the question. Like search, it
 // runs in a background tab that is closed afterwards. Returns { answer }, { blocked: true }
 // or { error }. The worker is kept awake meanwhile: this takes up to a minute.
-async function runAiMode({ query, image }) {
-  if (typeof query !== 'string' || !query.trim()) return { error: 'bad request' };
+async function runAiMode({ instruction, question, context, image }) {
+  if (typeof instruction !== 'string' || typeof question !== 'string' || !question.trim()) {
+    return { error: 'bad request' };
+  }
+  // AI Mode takes typed text, so instead of whole documents it gets the few passages of
+  // the active sources that match the selection (see lib/excerpts.js).
+  const excerpts = pickExcerpts(await getActiveSources(), question, typeof context === 'string' ? context : '');
+  const notes = excerpts.length
+    ? "Notes from the user's own documents (use them if they are relevant; if they differ from your answer, say so in the reason and name the document): " +
+      excerpts.map((e) => `[${e.name}] ${e.text}`).join(' ') +
+      ' '
+    : '';
+  const query = `${instruction}${notes}Question: ${question}`.replace(/\s+/g, ' ').slice(0, MAX_AI_MODE_CHARS);
+  const sourceNames = [...new Set(excerpts.map((e) => e.name))];
   const useImage =
     typeof image === 'string' && image.startsWith('data:image/jpeg;base64,') && image.length <= MAX_IMAGE_CHARS;
   const base = 'https://www.google.com/search?udm=50&hl=en';
   // With a screenshot the question is typed in after the image is attached; without one,
   // putting it in the URL is simpler and sturdier.
-  const url = useImage ? base : `${base}&q=${encodeURIComponent(query.slice(0, 1000))}`;
+  const url = useImage ? base : `${base}&q=${encodeURIComponent(query)}`;
   const keepAlive = setInterval(() => chrome.runtime.getPlatformInfo(), 20_000);
   let tabId;
   try {
@@ -114,9 +129,10 @@ async function runAiMode({ query, image }) {
     const [injection] = await chrome.scripting.executeScript({
       target: { tabId },
       func: (q, img, preloaded) => globalThis.GlossAiMode.run(q, img, preloaded),
-      args: [query.slice(0, 1000), useImage ? image : null, !useImage],
+      args: [query, useImage ? image : null, !useImage],
     });
-    return injection?.result || { error: 'empty' };
+    const result = injection?.result || { error: 'empty' };
+    return result.answer ? { ...result, sources: sourceNames } : result;
   } catch (err) {
     return { error: String(err?.message || err) };
   } finally {

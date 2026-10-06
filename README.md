@@ -83,8 +83,19 @@ change or set it at `chrome://extensions/shortcuts` (there is a button for this 
 
 ## Reference sources
 
-Sources are your own documents, attached to every question so Gloss can use them and
-point out when one contradicts or adds to an answer.
+Sources are your own documents, used so Gloss can draw on them and point out when one
+contradicts or adds to an answer. How they are used depends on how you ask:
+
+- **Google AI Mode (the default):** it takes typed text, so a whole PDF can't be sent.
+  Gloss picks up to four short passages (about 2,400 characters in total) from your active
+  sources that share words with your selection, and types them into the question. The
+  card says which sources were used. **Those passages are sent to Google**, so untick a
+  source if it shouldn't be. Matching is by keywords, so a passage that uses different
+  words for the same idea may be missed.
+- **Ask AI + screenshot / follow-ups:** your active sources are sent whole to your chosen
+  AI provider, so nothing is missed.
+- **Search Google:** sources aren't used.
+
 
 - **Upload PDFs**: text is extracted in the browser, page by page, with pdf.js. Only the
   extracted text is kept, not the PDF.
@@ -158,6 +169,7 @@ per minute, so large sources often fail there.
 | `lib/prompt.js` | System prompt and message construction. |
 | `lib/store.js` | Everything stored in `chrome.storage.local`. |
 | `lib/aimode.js` | Operates Google AI Mode in a background tab: attaches the screenshot, asks, and reads the finished answer. |
+| `lib/excerpts.js` | Picks the passages of your sources that match a selection, for Google AI Mode. |
 | `lib/search.js` | Reads a rendered search results tab (Google, or DuckDuckGo as a fallback) into a short answer and a few results. |
 | `lib/markdown.js` | Tiny renderer for bold, italics, code and lists that builds DOM nodes only (no `innerHTML`). |
 | `lib/pdf*.mjs` | Vendored pdf.js (see `lib/README.md`). |

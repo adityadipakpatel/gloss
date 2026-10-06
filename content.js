@@ -235,16 +235,17 @@
     const selected = c.selection.text.replace(/\s+/g, ' ').trim().slice(0, MAX_AI_MODE_QUESTION_CHARS);
     // Google's answer is read back out of its page, so ask for a tiny JSON object that is
     // easy to pick out; the <...> parts are placeholders, not the format of the values.
-    const question =
+    const instruction =
       'Reply with only a JSON object and nothing else, in this shape: ' +
       '{"answer":"<only the answer, as short as possible, for example B) Italy>","reason":"<one short sentence, or empty>"} ' +
       'No markdown, no other text, no follow-up questions. ' +
-      (image ? 'The attached screenshot shows the page the question comes from. ' : '') +
-      `Question: ${selected}`;
+      (image ? 'The attached screenshot shows the page the question comes from. ' : '');
+    // The background worker adds excerpts from the user's sources between these two parts.
+    const context = `${c.selection.before} ${c.selection.after}`;
 
     let reply;
     try {
-      reply = await chrome.runtime.sendMessage({ type: 'gloss:aimode', query: question, image });
+      reply = await chrome.runtime.sendMessage({ type: 'gloss:aimode', instruction, question: selected, context, image });
     } catch {
       if (live()) showError({ message: 'Gloss was updated. Reload this page to use it again.' });
       return;
@@ -266,6 +267,9 @@
         answer,
         el('p', 'note', hadImage ? 'From Google AI Mode, using the screenshot.' : 'From Google AI Mode (no screenshot: the capture failed).')
       );
+      if (reply.sources?.length) {
+        view.append(el('p', 'note', `Used passages from your sources: ${reply.sources.join(', ')}.`));
+      }
     } else {
       const reason = reply?.blocked
         ? 'Google is asking you to confirm you are not a robot. Open Google AI Mode, confirm, then try again.'
