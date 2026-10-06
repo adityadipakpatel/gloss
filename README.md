@@ -111,6 +111,22 @@ them. On Anthropic they go in an explicitly cached block, which only applies abo
 minimum size (about 4,000 tokens of sources on Haiku 4.5). Groq's free tier limits tokens
 per minute, so large sources often fail there.
 
+## History and privacy of searches
+
+Search Google and Google AI Mode run in a background tab in your own browser. Two kinds
+of history can result:
+
+- **Browser history:** Gloss deletes the pages its own background tab visited as soon as
+  the tab closes (this is what the `history` permission is for). It only touches the exact
+  Google and DuckDuckGo pages Gloss's tab opened, never your other history.
+- **Your Google account's history:** because the search uses your signed-in Google session,
+  Google may still record it in My Activity and in AI Mode's saved conversations. An
+  extension can't safely delete that. To keep it separate, either delete it at
+  [myactivity.google.com](https://myactivity.google.com), set that page's auto-delete,
+  or use Gloss in a separate Chrome profile signed in to a spare Google account. A
+  different browser isn't an option: an extension can only run inside the browser it's
+  installed in.
+
 ## Known limitations
 
 - **Screenshots** capture only what is visible in the window right now, not the whole
@@ -159,7 +175,7 @@ per minute, so large sources often fail there.
 
 | File | Role |
 | --- | --- |
-| `manifest.json` | Manifest V3. Permissions: `contextMenus`, `storage`, `unlimitedStorage`, `activeTab`, `scripting`; host access only to the four AI provider APIs plus Google and DuckDuckGo search. |
+| `manifest.json` | Manifest V3. Permissions: `contextMenus`, `storage`, `unlimitedStorage`, `activeTab`, `scripting`; host access only to the four AI provider APIs plus Google and DuckDuckGo search; `history` only to remove Gloss's own search tabs from the history. |
 | `background.js` | Service worker: context menu, shortcut, injects the content script on demand, makes the streaming API call. |
 | `content.js` | Captures the selection and about 300 characters of context each side, renders the card in a closed Shadow DOM, handles follow-ups and dismissal. |
 | `card.css.js` | The card's styles (white, whatever the system theme). |

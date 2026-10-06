@@ -44,6 +44,39 @@ const SEARCH_URLS = {
 };
 const SEARCH_LOAD_TIMEOUT_MS = 12_000;
 
+// Opens a background tab for a search or AI Mode question. Everything such a tab visits
+// is remembered, and close() removes those pages from the browser history again, so
+// Gloss's questions don't pile up in it. Only the exact pages Gloss's own tab visited
+// are removed, and only on Google or DuckDuckGo.
+const FORGET_URL = /^https:\/\/(www\.google\.com|(html\.)?duckduckgo\.com)\//;
+
+async function openHiddenTab(url) {
+  const tab = await chrome.tabs.create({ url, active: false });
+  const urls = new Set();
+  const onUpdated = (id, info, updated) => {
+    if (id !== tab.id) return;
+    for (const seen of [info.url, updated?.url]) if (seen) urls.add(seen);
+  };
+  chrome.tabs.onUpdated.addListener(onUpdated);
+  return {
+    id: tab.id,
+    async close() {
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      try {
+        urls.add((await chrome.tabs.get(tab.id)).url);
+      } catch {
+        // The tab is already gone.
+      }
+      await chrome.tabs.remove(tab.id).catch(() => {});
+      const forget = () => {
+        for (const seen of urls) if (FORGET_URL.test(seen || '')) chrome.history.deleteUrl({ url: seen }).catch(() => {});
+      };
+      forget();
+      setTimeout(forget, 3000); // history is written a moment after the page loads
+    },
+  };
+}
+
 function waitForTabLoad(tabId) {
   return new Promise((resolve) => {
     const done = () => {
@@ -76,10 +109,10 @@ async function readSearchPage(engine) {
 async function runSearch({ query, engine }) {
   const makeUrl = SEARCH_URLS[engine];
   if (!makeUrl || typeof query !== 'string' || !query.trim()) return { error: 'bad request' };
-  let tabId;
+  let hidden;
   try {
-    const tab = await chrome.tabs.create({ url: makeUrl(query.slice(0, 300)), active: false });
-    tabId = tab.id;
+    hidden = await openHiddenTab(makeUrl(query.slice(0, 300)));
+    const tabId = hidden.id;
     await waitForTabLoad(tabId);
     await chrome.scripting.executeScript({ target: { tabId }, files: ['lib/search.js'] });
     const [injection] = await chrome.scripting.executeScript({
@@ -91,7 +124,7 @@ async function runSearch({ query, engine }) {
   } catch (err) {
     return { error: String(err?.message || err) };
   } finally {
-    if (tabId != null) chrome.tabs.remove(tabId).catch(() => {}); // the user may have closed it
+    await hidden?.close();
   }
 }
 
@@ -120,10 +153,10 @@ async function runAiMode({ instruction, question, context, image }) {
   // putting it in the URL is simpler and sturdier.
   const url = useImage ? base : `${base}&q=${encodeURIComponent(query)}`;
   const keepAlive = setInterval(() => chrome.runtime.getPlatformInfo(), 20_000);
-  let tabId;
+  let hidden;
   try {
-    const tab = await chrome.tabs.create({ url, active: false });
-    tabId = tab.id;
+    hidden = await openHiddenTab(url);
+    const tabId = hidden.id;
     await waitForTabLoad(tabId);
     await chrome.scripting.executeScript({ target: { tabId }, files: ['lib/aimode.js'] });
     const [injection] = await chrome.scripting.executeScript({
@@ -137,7 +170,7 @@ async function runAiMode({ instruction, question, context, image }) {
     return { error: String(err?.message || err) };
   } finally {
     clearInterval(keepAlive);
-    if (tabId != null) chrome.tabs.remove(tabId).catch(() => {});
+    await hidden?.close();
   }
 }
 
