@@ -267,8 +267,11 @@
         answer,
         el('p', 'note', hadImage ? 'From Google AI Mode, using the screenshot.' : 'From Google AI Mode (no screenshot: the capture failed).')
       );
+      // Always say what happened with the user's sources, so a missing one is visible.
       if (reply.sources?.length) {
         view.append(el('p', 'note', `Used passages from your sources: ${reply.sources.join(', ')}.`));
+      } else if (reply.sourcesActive) {
+        view.append(el('p', 'note', 'None of your sources had a passage matching this selection, so nothing from them was sent.'));
       }
     } else {
       const reason = reply?.blocked

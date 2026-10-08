@@ -87,9 +87,9 @@ Sources are your own documents, used so Gloss can draw on them and point out whe
 contradicts or adds to an answer. How they are used depends on how you ask:
 
 - **Google AI Mode (the default):** it takes typed text, so a whole PDF can't be sent.
-  Gloss picks up to four short passages (about 2,400 characters in total) from your active
-  sources that share words with your selection, and types them into the question. The
-  card says which sources were used. **Those passages are sent to Google**, so untick a
+  Gloss picks up to five short passages (about 3,000 characters in total) from your active
+  sources that share a word with your selection (or the text around it), and types them
+  into the question. The card always says which sources were used, or that none matched. **Those passages are sent to Google**, so untick a
   source if it shouldn't be. Matching is by keywords, so a passage that uses different
   words for the same idea may be missed.
 - **Ask AI + screenshot / follow-ups:** your active sources are sent whole to your chosen

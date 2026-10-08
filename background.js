@@ -11,7 +11,8 @@ const RESERVED_TOKENS = 5000;
 // Screenshots are JPEGs sent as base64 text; keep requests comfortably under provider limits.
 const MAX_IMAGE_CHARS = 3_000_000;
 // The whole question typed into Google AI Mode: instructions, source excerpts, selection.
-const MAX_AI_MODE_CHARS = 4000;
+const MAX_AI_MODE_CHARS = 6000;
+const MAX_AI_MODE_URL_CHARS = 1800;
 
 const MENU_ID = 'ask-gloss';
 // Injected on demand, in this order. Nothing runs on a page until Gloss is triggered there.
@@ -138,16 +139,21 @@ async function runAiMode({ instruction, question, context, image }) {
   }
   // AI Mode takes typed text, so instead of whole documents it gets the few passages of
   // the active sources that match the selection (see lib/excerpts.js).
-  const excerpts = pickExcerpts(await getActiveSources(), question, typeof context === 'string' ? context : '');
+  const activeSources = await getActiveSources();
+  const excerpts = pickExcerpts(activeSources, question, typeof context === 'string' ? context : '');
   const notes = excerpts.length
     ? "Notes from the user's own documents (use them if they are relevant; if they differ from your answer, say so in the reason and name the document): " +
       excerpts.map((e) => `[${e.name}] ${e.text}`).join(' ') +
       ' '
     : '';
-  const query = `${instruction}${notes}Question: ${question}`.replace(/\s+/g, ' ').slice(0, MAX_AI_MODE_CHARS);
-  const sourceNames = [...new Set(excerpts.map((e) => e.name))];
   const useImage =
     typeof image === 'string' && image.startsWith('data:image/jpeg;base64,') && image.length <= MAX_IMAGE_CHARS;
+  // Without a screenshot the whole question travels in the page URL, which can't be as long.
+  // When it's too long, the instructions and notes are cut, never the question itself.
+  const tail = `Question: ${question}`.replace(/\s+/g, ' ');
+  const limit = useImage ? MAX_AI_MODE_CHARS : MAX_AI_MODE_URL_CHARS;
+  const query = `${`${instruction}${notes}`.replace(/\s+/g, ' ').slice(0, Math.max(0, limit - tail.length - 1))} ${tail}`.trim();
+  const sourceNames = [...new Set(excerpts.map((e) => e.name))];
   const base = 'https://www.google.com/search?udm=50&hl=en';
   // With a screenshot the question is typed in after the image is attached; without one,
   // putting it in the URL is simpler and sturdier.
@@ -165,7 +171,7 @@ async function runAiMode({ instruction, question, context, image }) {
       args: [query, useImage ? image : null, !useImage],
     });
     const result = injection?.result || { error: 'empty' };
-    return result.answer ? { ...result, sources: sourceNames } : result;
+    return result.answer ? { ...result, sources: sourceNames, sourcesActive: activeSources.length } : result;
   } catch (err) {
     return { error: String(err?.message || err) };
   } finally {
