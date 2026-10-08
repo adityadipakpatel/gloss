@@ -2,6 +2,7 @@
 import { describeError, testConnection } from './lib/api.js';
 import { PROVIDERS, defaultModel } from './lib/providers.js';
 import {
+  MAX_PDF_FILE_BYTES,
   SOURCE_TOKEN_WARNING,
   addSource,
   deleteSource,
@@ -174,6 +175,14 @@ function sourceRow(source) {
     warning.textContent = source.warning;
     info.append(warning);
   }
+  if (source.kind === 'pdf') {
+    const file = document.createElement('span');
+    file.className = source.hasFile ? 'meta' : 'meta warn';
+    file.textContent = source.hasFile
+      ? `The PDF file (${(source.fileBytes / 1024 / 1024).toFixed(1)} MB) is sent to Google AI Mode.`
+      : 'The PDF file itself is not kept (added before this existed, or over 10 MB), so only its text is used. Re-add it to send the file.';
+    info.append(file);
+  }
 
   const remove = document.createElement('button');
   remove.type = 'button';
@@ -239,6 +248,15 @@ async function extractPdf(file, onProgress) {
   }
 }
 
+// Base64 of a byte array, in slices (a single call on a big array overflows the stack).
+function toBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
 async function addPdf(file) {
   const progress = $('pdf-progress');
   progress.textContent = `${file.name}: opening…`;
@@ -257,6 +275,9 @@ async function addPdf(file) {
   }
   const perPage = Math.round(text.length / pages);
   const scanned = perPage < SCANNED_CHARS_PER_PAGE;
+  // Keep the original file too, so Google AI Mode can be sent the PDF itself. (pdf.js took
+  // the first copy of the bytes, so read the file again.)
+  const keepFile = file.size <= MAX_PDF_FILE_BYTES;
   await addSource({
     name: file.name,
     kind: 'pdf',
@@ -265,6 +286,8 @@ async function addPdf(file) {
     warning: scanned
       ? `Only about ${perPage} characters per page were found. This may be a scanned PDF with little usable text.`
       : '',
+    fileBase64: keepFile ? toBase64(new Uint8Array(await file.arrayBuffer())) : null,
+    fileBytes: file.size,
   });
   return scanned ? `"${file.name}" was added, but very little text was found in it.` : null;
 }

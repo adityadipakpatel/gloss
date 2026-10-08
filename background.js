@@ -4,7 +4,7 @@ import { ApiError, describeError, streamAnswer } from './lib/api.js';
 import { buildFirstMessage, buildSystem } from './lib/prompt.js';
 import { pickExcerpts } from './lib/excerpts.js';
 import { PROVIDERS, contextTokens, visionModel } from './lib/providers.js';
-import { getActiveSources, getSettings } from './lib/store.js';
+import { getActivePdfFiles, getActiveSources, getSettings } from './lib/store.js';
 
 // Room left in the context window for instructions, the selection and the answer.
 const RESERVED_TOKENS = 5000;
@@ -148,16 +148,23 @@ async function runAiMode({ instruction, question, context, image }) {
     : '';
   const useImage =
     typeof image === 'string' && image.startsWith('data:image/jpeg;base64,') && image.length <= MAX_IMAGE_CHARS;
-  // Without a screenshot the whole question travels in the page URL, which can't be as long.
-  // When it's too long, the instructions and notes are cut, never the question itself.
+  // The original PDFs of the active sources are attached to every question.
+  const { files, missing } = await getActivePdfFiles();
+  const fileNote = files.length
+    ? "The attached PDF documents are the user's own reference notes: use them when relevant, and if they differ from your answer, say so in the reason and name the document. "
+    : '';
+  // Attachments are added to the page before the question is typed, so with a screenshot
+  // or documents the question is typed in. Otherwise putting it in the URL is simpler and
+  // sturdier, but a URL can't be as long. When the text is too long, the instructions and
+  // notes are cut, never the question itself.
+  const typed = useImage || files.length > 0;
   const tail = `Question: ${question}`.replace(/\s+/g, ' ');
-  const limit = useImage ? MAX_AI_MODE_CHARS : MAX_AI_MODE_URL_CHARS;
-  const query = `${`${instruction}${notes}`.replace(/\s+/g, ' ').slice(0, Math.max(0, limit - tail.length - 1))} ${tail}`.trim();
+  const limit = typed ? MAX_AI_MODE_CHARS : MAX_AI_MODE_URL_CHARS;
+  const head = `${instruction}${fileNote}${notes}`.replace(/\s+/g, ' ').slice(0, Math.max(0, limit - tail.length - 1));
+  const query = `${head} ${tail}`.trim();
   const sourceNames = [...new Set(excerpts.map((e) => e.name))];
   const base = 'https://www.google.com/search?udm=50&hl=en';
-  // With a screenshot the question is typed in after the image is attached; without one,
-  // putting it in the URL is simpler and sturdier.
-  const url = useImage ? base : `${base}&q=${encodeURIComponent(query)}`;
+  const url = typed ? base : `${base}&q=${encodeURIComponent(query)}`;
   const keepAlive = setInterval(() => chrome.runtime.getPlatformInfo(), 20_000);
   let hidden;
   try {
@@ -167,11 +174,13 @@ async function runAiMode({ instruction, question, context, image }) {
     await chrome.scripting.executeScript({ target: { tabId }, files: ['lib/aimode.js'] });
     const [injection] = await chrome.scripting.executeScript({
       target: { tabId },
-      func: (q, img, preloaded) => globalThis.GlossAiMode.run(q, img, preloaded),
-      args: [query, useImage ? image : null, !useImage],
+      func: (q, img, preloaded, docs) => globalThis.GlossAiMode.run(q, img, preloaded, docs),
+      args: [query, useImage ? image : null, !typed, files],
     });
     const result = injection?.result || { error: 'empty' };
-    return result.answer ? { ...result, sources: sourceNames, sourcesActive: activeSources.length } : result;
+    return result.answer
+      ? { ...result, sources: sourceNames, sourcesActive: activeSources.length, missingFiles: missing }
+      : result;
   } catch (err) {
     return { error: String(err?.message || err) };
   } finally {

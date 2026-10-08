@@ -268,6 +268,15 @@
         el('p', 'note', hadImage ? 'From Google AI Mode, using the screenshot.' : 'From Google AI Mode (no screenshot: the capture failed).')
       );
       // Always say what happened with the user's sources, so a missing one is visible.
+      if (reply.attachedFiles?.length) {
+        view.append(el('p', 'note', `Sent your PDF to Google AI Mode: ${reply.attachedFiles.join(', ')}.`));
+      }
+      if (reply.failedFiles?.length) {
+        view.append(el('p', 'note', `Google AI Mode didn't take the PDF file: ${reply.failedFiles.join(', ')}.`));
+      }
+      if (reply.missingFiles?.length) {
+        view.append(el('p', 'note', `Not sent as a file (re-add it in settings): ${reply.missingFiles.join(', ')}.`));
+      }
       if (reply.sources?.length) {
         view.append(el('p', 'note', `Used passages from your sources: ${reply.sources.join(', ')}.`));
       } else if (reply.sourcesActive) {

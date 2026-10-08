@@ -86,12 +86,18 @@ change or set it at `chrome://extensions/shortcuts` (there is a button for this 
 Sources are your own documents, used so Gloss can draw on them and point out when one
 contradicts or adds to an answer. How they are used depends on how you ask:
 
-- **Google AI Mode (the default):** it takes typed text, so a whole PDF can't be sent.
-  Gloss picks up to five short passages (about 3,000 characters in total) from your active
-  sources that share a word with your selection (or the text around it), and types them
-  into the question. The card always says which sources were used, or that none matched. **Those passages are sent to Google**, so untick a
-  source if it shouldn't be. Matching is by keywords, so a passage that uses different
-  words for the same idea may be missed.
+- **Google AI Mode (the default):** every question **uploads the original PDF files** of
+  your active PDF sources to Google AI Mode, the same way the screenshot is attached, so it
+  can read the whole documents. Gloss keeps each PDF you add (up to 10 MB each, 15 MB per
+  question) in this browser for that. PDFs added before this existed have no stored file:
+  the settings page marks them, and re-adding them fixes it. Pasted text sources can't be
+  attached as files, so for those (and as a backup if Google won't take a PDF) Gloss also
+  types up to five short matching passages (about 3,000 characters) into the question. The
+  card says what was sent: the PDF files, the passages, or that nothing matched.
+  **Everything attached is uploaded to Google on every question, and may be saved in your
+  Google account's AI Mode history.** Untick a source in settings to stop that, and expect
+  slower answers with big PDFs. If Google's page doesn't accept an upload, the card says
+  so and the question still goes out without it.
 - **Ask AI + screenshot / follow-ups:** your active sources are sent whole to your chosen
   AI provider, so nothing is missed.
 - **Search Google:** sources aren't used.
