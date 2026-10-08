@@ -123,6 +123,15 @@
     startAiMode();
   }
 
+  // Switching to another way of answering (Search Google, Ask AI...) replaces what the
+  // card shows and starts a new conversation, rather than stacking a second answer under
+  // the first. Follow-ups in the same conversation call startAnswer directly instead.
+  function switchTo(start) {
+    card.turns = [];
+    card.body.replaceChildren();
+    start();
+  }
+
   function button(label, onClick, className = 'action') {
     const node = el('button', className, label);
     node.type = 'button';
@@ -297,7 +306,11 @@
     open.href = `https://www.google.com/search?udm=50&q=${encodeURIComponent(selected)}`;
     open.target = '_blank';
     open.rel = 'noopener noreferrer';
-    row.append(open, button('Search Google', startSearch, 'action secondary'), button('Ask AI + screenshot', startScreenshotAnswer, 'action secondary'));
+    row.append(
+      open,
+      button('Search Google', () => switchTo(startSearch), 'action secondary'),
+      button('Ask AI + screenshot', () => switchTo(startScreenshotAnswer), 'action secondary')
+    );
     view.append(row);
 
     c.answerEl.replaceChildren(view);
@@ -389,7 +402,7 @@
     open.href = openUrl;
     open.target = '_blank';
     open.rel = 'noopener noreferrer';
-    row.append(open, button('Ask AI instead', startAnswer, 'action secondary'));
+    row.append(open, button('Ask AI instead', () => switchTo(startAnswer), 'action secondary'));
     view.append(row);
 
     c.answerEl.replaceChildren(view);
